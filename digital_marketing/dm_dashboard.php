@@ -1,591 +1,361 @@
 <?php
-// -------------------------------------------------------------------------
-// MOCK DATA (Ideally, this comes from your MySQL Database later)
-// -------------------------------------------------------------------------
+session_start();
 
-// Key Metrics
-$total_leads = 6000;
-$new_leads = 120;
-$lost_leads = 30;
-$total_customers = 9895;
-
-// Recent Leads Data (Array)
-$recent_leads = [
-    ['company' => 'BrightWave', 'img' => 'assets/img/company/company-01.svg', 'stage' => 'Contacted', 'badge' => 'secondary', 'date' => '14 Jan 2024', 'owner' => 'William Parsons'],
-    ['company' => 'Stellar', 'img' => 'assets/img/company/company-02.svg', 'stage' => 'Closed', 'badge' => 'success', 'date' => '21 Jan 2024', 'owner' => 'Lucille Tomberlin'],
-    ['company' => 'Quantum', 'img' => 'assets/img/company/company-03.svg', 'stage' => 'Lost', 'badge' => 'danger', 'date' => '20 Feb 2024', 'owner' => 'Frederick Johnson'],
-    ['company' => 'EcoVision', 'img' => 'assets/img/company/company-04.svg', 'stage' => 'Not Contacted', 'badge' => 'purple', 'date' => '15 Mar 2024', 'owner' => 'Sarah Henry'],
-    ['company' => 'Aurora', 'img' => 'assets/img/company/company-05.svg', 'stage' => 'Closed', 'badge' => 'success', 'date' => '12 Apr 2024', 'owner' => 'Thomas Miller'],
+// --- 1. ROBUST DATABASE CONNECTION (MySQLi) ---
+// We try multiple paths to find your connection file
+$db_paths = [
+    '../include/db_connect.php', 
+    '../../include/db_connect.php',
+    'db_connect.php'
 ];
 
-// Top Countries Data (Array)
-$top_countries = [
-    ['name' => 'Singapore', 'img' => 'assets/img/payment-gateway/country-03.svg', 'leads' => 236, 'color' => 'primary'],
-    ['name' => 'France', 'img' => 'assets/img/payment-gateway/country-04.svg', 'leads' => 589, 'color' => 'secondary'],
-    ['name' => 'Norway', 'img' => 'assets/img/payment-gateway/country-05.svg', 'leads' => 221, 'color' => 'info'],
-    ['name' => 'USA', 'img' => 'assets/img/payment-gateway/country-01.svg', 'leads' => 350, 'color' => 'danger'],
-    ['name' => 'UAE', 'img' => 'assets/img/payment-gateway/country-02.svg', 'leads' => 221, 'color' => 'warning'],
-];
+$conn = null;
+foreach ($db_paths as $path) {
+    if (file_exists($path)) {
+        include $path;
+        // Check if the variable from db_connect.php is set
+        if (isset($conn)) break; 
+    }
+}
 
+if (!isset($conn)) {
+    die("<div style='color:red;padding:20px;'><b>Error:</b> Database connection file not found or connection failed. Checked paths: " . implode(', ', $db_paths) . "</div>");
+}
+
+// --- 2. FETCH REAL DATA FROM DB ---
+try {
+    // Helper function for counts
+    function get_db_count($conn, $sql) {
+        $result = mysqli_query($conn, $sql);
+        return ($result && $row = mysqli_fetch_array($result)) ? $row[0] : 0;
+    }
+
+    // A. KPI Metrics
+    $total_leads = get_db_count($conn, "SELECT COUNT(*) FROM leads");
+    $new_leads   = get_db_count($conn, "SELECT COUNT(*) FROM leads WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+    $lost_leads  = get_db_count($conn, "SELECT COUNT(*) FROM leads WHERE lead_stage = 'Lost'");
+    $customers   = get_db_count($conn, "SELECT COUNT(*) FROM leads WHERE lead_stage = 'Closed'");
+
+    // B. Charts Data (Dynamic from DB)
+    // Pipeline
+    $pipe_labels = []; $pipe_data = [];
+    $res = mysqli_query($conn, "SELECT lead_stage, COUNT(*) as c FROM leads GROUP BY lead_stage");
+    if($res) { while($r = mysqli_fetch_assoc($res)) { $pipe_labels[] = $r['lead_stage']; $pipe_data[] = $r['c']; } }
+
+    // Source
+    $src_labels = []; $src_data = [];
+    $res = mysqli_query($conn, "SELECT lead_source, COUNT(*) as c FROM leads GROUP BY lead_source");
+    if($res) { while($r = mysqli_fetch_assoc($res)) { $src_labels[] = $r['lead_source']; $src_data[] = $r['c']; } }
+
+    // C. Recent Leads List
+    $recent_leads_db = [];
+    $res = mysqli_query($conn, "SELECT * FROM leads ORDER BY created_at DESC LIMIT 5");
+    if($res) { while($r = mysqli_fetch_assoc($res)) { $recent_leads_db[] = $r; } }
+
+} catch (Exception $e) {
+    echo "Data Error: " . $e->getMessage();
+}
 ?>
 
-<?php include '../include/header.php'; ?>
-<?php include '../include/sidebar.php'; ?>
-<style>
-    /* --- 1. Layout & Structure --- */
-    body {
-        background-color: #f7f8f9;
-        font-family: 'CircularStd', sans-serif;
-        color: #333;
-        margin: 0;
-        overflow-x: hidden;
-    }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leads Dashboard</title>
     
-    /* Pushes content right to not hide behind sidebar */
-    .page-wrapper {
-        margin-left: 260px; /* Width of your sidebar */
-        padding-top: 60px; /* Height of your header */
-        padding: 30px;
-        transition: all 0.2s ease-in-out;
-    }
-
-    .content {
-        padding: 1.5rem 0;
-    }
-
-    /* --- 2. Cards & Metrics --- */
-    .card {
-        background: #fff;
-        border: 0;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.03);
-        margin-bottom: 24px;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-        word-wrap: break-word;
-    }
-
-    .card-body {
-        padding: 1.5rem;
-        flex: 1 1 auto;
-    }
-
-    .card-header {
-        background-color: #fff;
-        border-bottom: 1px solid #f0f0f0;
-        padding: 1rem 1.5rem;
-        border-radius: 10px 10px 0 0;
-    }
-
-    .card-header h5 {
-        margin-bottom: 0;
-        font-size: 16px;
-        font-weight: 600;
-        color: #333;
-    }
-
-    /* Metric Icons */
-    .avatar {
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-    }
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     
-    .avatar-md {
-        width: 48px;
-        height: 48px;
-    }
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
-    .bg-primary { background-color: #FF902F !important; color: #fff; } /* Orange */
-    .bg-secondary { background-color: #333 !important; color: #fff; }
-    .bg-danger { background-color: #F62D51 !important; color: #fff; }
-    .bg-purple { background-color: #7a92a3 !important; color: #fff; }
-    .bg-success { background-color: #55ce63 !important; color: #fff; }
-    .bg-info { background-color: #009efb !important; color: #fff; }
+    <style>
+        /* --- LAYOUT FIXES --- */
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background-color: #f4f7fc; display: flex; height: 100vh; overflow: hidden; }
+        .main-content-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh; }
+        .dashboard-scroll-area { flex: 1; overflow-y: auto; padding: 25px; }
 
-    /* Progress Bars */
-    .progress {
-        height: 6px;
-        background-color: #f5f5f5;
-        border-radius: 10px;
-        overflow: hidden;
-    }
-    .progress-bar {
-        height: 100%;
-    }
+        /* --- CARDS & PANELS --- */
+        .card { border: none; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); margin-bottom: 24px; background: #fff; }
+        .card-header { background: transparent; border-bottom: 1px solid #f0f0f0; padding: 15px 20px; font-weight: 600; font-size: 16px; display:flex; justify-content:space-between; align-items:center; }
+        .card-body { padding: 20px; }
+        .card-fill { height: 100%; }
 
-    /* --- 3. Typography & Helpers --- */
-    h5 { font-size: 20px; font-weight: 700; margin: 0; }
-    p { color: #777; font-size: 14px; margin-bottom: 5px; }
-    .text-success { color: #28a745 !important; }
-    .text-danger { color: #dc3545 !important; }
-    .fs-12 { font-size: 12px; }
-    .fs-13 { font-size: 13px; }
-    .fw-medium { font-weight: 500; }
-    .mb-3 { margin-bottom: 1rem !important; }
+        /* --- METRICS (KPIs) --- */
+        .avatar-md { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 10px; color: #fff; font-size: 22px; }
+        .bg-orange { background: #FF9B44; } .bg-dark { background: #333; } .bg-red { background: #fc6075; } .bg-purple { background: #7460ee; }
+        
+        /* --- LISTS (Companies/FollowUp) --- */
+        .border-dashed { border: 1px dashed #e3e3e3; border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #fafafa; }
+        .list-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+        .avatar-sm { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #eee; font-weight: bold; color: #555; margin-right: 10px; font-size: 12px; }
+        
+        /* --- TIMELINE (Activities) --- */
+        .activity-feed { position: relative; padding-left: 20px; }
+        .feed-item { position: relative; padding-bottom: 20px; border-left: 2px solid #eee; padding-left: 20px; }
+        .feed-item:last-child { border: none; }
+        .feed-icon { position: absolute; left: -11px; top: 0; width: 20px; height: 20px; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+        .bg-success { background: #28a745; } .bg-info { background: #009efb; }
+        
+        /* --- BADGES --- */
+        .badge { padding: 5px 10px; font-weight: 500; font-size: 11px; border-radius: 4px; }
+        .badge-Contacted { background: #e0f2fe; color: #0ea5e9; }
+        .badge-Closed { background: #dcfce7; color: #16a34a; }
+        .badge-Lost { background: #fee2e2; color: #ef4444; }
+        .badge-New { background: #f3f4f6; color: #374151; }
+        
+        /* Header Overrides */
+        .breadcrumb-item a { text-decoration: none; color: #6c757d; }
+    </style>
+</head>
+<body>
 
-    /* --- 4. Tables --- */
-    .table-responsive {
-        overflow-x: auto;
-    }
-    .table {
-        width: 100%;
-        margin-bottom: 1rem;
-        color: #333;
-        vertical-align: top;
-        border-color: #dee2e6;
-    }
-    .table thead th {
-        vertical-align: bottom;
-        border-bottom: 1px solid #f0f0f0;
-        background-color: #fafafa;
-        color: #333;
-        font-weight: 600;
-        padding: 15px;
-        font-size: 14px;
-        text-align: left;
-    }
-    .table td {
-        padding: 15px;
-        vertical-align: middle;
-        border-top: 1px solid #f0f0f0;
-        font-size: 14px;
-    }
+    <?php include '../include/sidebar.php'; ?>
 
-    /* Badges */
-    .badge {
-        display: inline-block;
-        padding: 0.35em 0.65em;
-        font-size: 0.75em;
-        font-weight: 700;
-        line-height: 1;
-        color: #fff;
-        text-align: center;
-        white-space: nowrap;
-        vertical-align: baseline;
-        border-radius: 0.25rem;
-    }
-    .badge-secondary { background-color: #7460ee; }
-    .badge-success { background-color: #28a745; }
-    .badge-danger { background-color: #dc3545; }
-    .badge-purple { background-color: #7460ee; }
+    <div class="main-content-wrapper">
+        
+        <?php include '../include/header.php'; ?>
 
-    /* --- 5. Breadcrumb & Header Actions --- */
-    .breadcrumb {
-        background: transparent;
-        padding: 0;
-        margin-bottom: 0;
-        list-style: none;
-        display: flex;
-    }
-    .breadcrumb-item {
-        font-size: 14px;
-        color: #6c757d;
-    }
-    .breadcrumb-item.active {
-        color: #333;
-    }
-    .breadcrumb-item + .breadcrumb-item::before {
-        content: "/";
-        padding: 0 0.5rem;
-    }
-
-    /* Buttons */
-    .btn-white {
-        background-color: #fff;
-        border: 1px solid #e3e3e3;
-        color: #333;
-        padding: 8px 15px;
-        border-radius: 5px;
-        text-decoration: none;
-        font-size: 14px;
-        display: inline-flex;
-        align-items: center;
-    }
-    
-    /* Footer */
-    .footer {
-        text-align: center;
-        color: #777;
-        font-size: 13px;
-    }
-
-    /* --- Mobile Responsive --- */
-    @media (max-width: 991.98px) {
-        .page-wrapper {
-            margin-left: 0; /* Sidebar collapses on mobile */
-            padding: 15px;
-        }
-    }
-</style>
-<div class="page-wrapper">
-    <div class="content">
-
-        <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
-            <div class="my-auto mb-2">
-                <h2 class="mb-1">Leads Dashboard</h2>
-                <nav>
-                    <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item">
-                            <a href="index.php"><i class="ti ti-smart-home"></i></a>
-                        </li>
-                        <li class="breadcrumb-item">Dashboard</li>
-                        <li class="breadcrumb-item active" aria-current="page">Leads Dashboard</li>
-                    </ol>
-                </nav>
+        <div class="dashboard-scroll-area">
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h3 class="mb-1 fw-bold">Leads Dashboard</h3>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item"><a href="#">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Leads</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-white border bg-white btn-sm">Export <i class="ti ti-download"></i></button>
+                    <button class="btn btn-white border bg-white btn-sm"><i class="ti ti-calendar"></i> This Week</button>
+                </div>
             </div>
-            <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
-                <div class="me-2 mb-2">
-                    <div class="dropdown">
-                        <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                            <i class="ti ti-file-export me-1"></i>Export
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end p-3">
-                            <li><a href="javascript:void(0);" class="dropdown-item rounded-1"><i class="ti ti-file-type-pdf me-1"></i>Export as PDF</a></li>
-                            <li><a href="javascript:void(0);" class="dropdown-item rounded-1"><i class="ti ti-file-type-xls me-1"></i>Export as Excel </a></li>
-                        </ul>
+
+            <div class="row">
+                <div class="col-xl-3 col-sm-6"><div class="card"><div class="card-body d-flex align-items-center"><div class="avatar-md bg-orange me-3"><i class="ti ti-chart-bar"></i></div><div><p class="text-muted mb-1 fs-13">Total Leads</p><h4 class="mb-0"><?= number_format($total_leads) ?></h4><small class="text-danger">-4% vs last week</small></div></div></div></div>
+                <div class="col-xl-3 col-sm-6"><div class="card"><div class="card-body d-flex align-items-center"><div class="avatar-md bg-dark me-3"><i class="ti ti-user-plus"></i></div><div><p class="text-muted mb-1 fs-13">New Leads</p><h4 class="mb-0"><?= number_format($new_leads) ?></h4><small class="text-success">+20% vs last week</small></div></div></div></div>
+                <div class="col-xl-3 col-sm-6"><div class="card"><div class="card-body d-flex align-items-center"><div class="avatar-md bg-red me-3"><i class="ti ti-user-x"></i></div><div><p class="text-muted mb-1 fs-13">Lost Leads</p><h4 class="mb-0"><?= number_format($lost_leads) ?></h4><small class="text-success">+5% vs last week</small></div></div></div></div>
+                <div class="col-xl-3 col-sm-6"><div class="card"><div class="card-body d-flex align-items-center"><div class="avatar-md bg-purple me-3"><i class="ti ti-users"></i></div><div><p class="text-muted mb-1 fs-13">Customers</p><h4 class="mb-0"><?= number_format($customers) ?></h4><small class="text-success">+12% vs last week</small></div></div></div></div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>Pipeline Stages</h5></div>
+                        <div class="card-body"><div id="pipelineChart" style="height: 300px;"></div></div>
                     </div>
                 </div>
-                <div class="input-icon mb-2 position-relative">
-                    <span class="input-icon-addon"><i class="ti ti-calendar text-gray-9"></i></span>
-                    <input type="text" class="form-control date-range bookingrange" placeholder="dd/mm/yyyy - dd/mm/yyyy">
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-xl-3 col-md-6">
-                <div class="card position-relative">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="avatar avatar-md br-10 icon-rotate bg-primary flex-shrink-0">
-                                <span class="d-flex align-items-center"><i class="ti ti-delta text-white fs-16"></i></span>
-                            </div>
-                            <div class="ms-3">
-                                <p class="fw-medium text-truncate mb-1">Total No of Leads</p>
-                                <h5><?= number_format($total_leads) ?></h5>
-                            </div>
-                        </div>
-                        <div class="progress progress-xs mb-2">
-                            <div class="progress-bar bg-primary" role="progressbar" style="width: 40%"></div>
-                        </div>
-                        <p class="fw-medium fs-13 mb-0"><span class="text-danger fs-12"><i class="ti ti-arrow-wave-right-up me-1"></i>-4.01% </span> from last week</p>
+                <div class="col-lg-4">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>New Leads</h5></div>
+                        <div class="card-body"><div id="heatmapChart" style="height: 300px;"></div></div>
                     </div>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card position-relative">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="avatar avatar-md br-10 icon-rotate bg-secondary flex-shrink-0">
-                                <span class="d-flex align-items-center"><i class="ti ti-currency text-white fs-16"></i></span>
-                            </div>
-                            <div class="ms-3">
-                                <p class="fw-medium text-truncate mb-1">No of New Leads</p>
-                                <h5><?= number_format($new_leads) ?></h5>
-                            </div>
-                        </div>
-                        <div class="progress progress-xs mb-2">
-                            <div class="progress-bar bg-secondary" role="progressbar" style="width: 40%"></div>
-                        </div>
-                        <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i class="ti ti-arrow-wave-right-up me-1"></i>+20.01% </span> from last week</p>
+
+            <div class="row">
+                <div class="col-lg-4">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>Lost Leads</h5></div>
+                        <div class="card-body"><div id="lostChart" style="height: 250px;"></div></div>
                     </div>
                 </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card position-relative">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="avatar avatar-md br-10 icon-rotate bg-danger flex-shrink-0">
-                                <span class="d-flex align-items-center"><i class="ti ti-stairs-up text-white fs-16"></i></span>
-                            </div>
-                            <div class="ms-3">
-                                <p class="fw-medium text-truncate mb-1">No of Lost Leads</p>
-                                <h5><?= number_format($lost_leads) ?></h5>
-                            </div>
-                        </div>
-                        <div class="progress progress-xs mb-2">
-                            <div class="progress-bar bg-pink" role="progressbar" style="width: 40%"></div>
-                        </div>
-                        <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i class="ti ti-arrow-wave-right-up me-1"></i>+55% </span> from last week</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card position-relative">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="avatar avatar-md br-10 icon-rotate bg-purple flex-shrink-0">
-                                <span class="d-flex align-items-center"><i class="ti ti-users-group text-white fs-16"></i></span>
-                            </div>
-                            <div class="ms-3">
-                                <p class="fw-medium text-truncate mb-1">No of Total Customers</p>
-                                <h5><?= number_format($total_customers) ?></h5>
-                            </div>
-                        </div>
-                        <div class="progress progress-xs mb-2">
-                            <div class="progress-bar bg-purple" role="progressbar" style="width: 40%"></div>
-                        </div>
-                        <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i class="ti ti-arrow-wave-right-up me-1"></i>+55% </span> from last week</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-xl-8 d-flex">
-                <div class="card flex-fill">
-                    <div class="card-header">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                            <h5>Pipeline Stages</h5>
-                            <div class="dropdown">
-                                <a href="javascript:void(0);" class="btn btn-white border btn-md d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                    <i class="ti ti-calendar me-1 fs-14"></i>2023 - 2024
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end p-3">
-                                    <li><a href="javascript:void(0);" class="dropdown-item rounded-1">2023 - 2024</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body pb-0">
-                        <div class="row g-2 justify-content-center mb-3">
-                            <div class="col-md col-sm-4 col-6">
-                                <div class="border rounded p-2">
-                                    <p class="mb-1 d-flex align-items-center gap-1"><i class="ti ti-square-rounded-filled text-primary fs-13"></i>Contacted</p>
-                                    <h6>50000</h6>
+                
+                <div class="col-lg-4">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>Leads By Companies</h5></div>
+                        <div class="card-body">
+                            <?php foreach(['Pitch', 'Initech', 'Umbrella Corp'] as $comp): ?>
+                            <div class="border-dashed d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-white border"><?= substr($comp,0,1) ?></div>
+                                    <div><h6 class="mb-0 fs-13"><?= $comp ?></h6><small class="text-muted">$45,000</small></div>
                                 </div>
+                                <span class="badge badge-New">Contacted</span>
                             </div>
-                            <div class="col-md col-sm-4 col-6">
-                                <div class="border rounded p-2">
-                                    <p class="mb-1 d-flex align-items-center gap-1"><i class="ti ti-square-rounded-filled text-secondary fs-13"></i>Oppurtunity</p>
-                                    <h6>25985</h6>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>Leads By Source</h5></div>
+                        <div class="card-body d-flex align-items-center justify-content-center">
+                            <div id="sourceChart" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-4">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>Recent Follow Up</h5><a href="#" class="fs-12">View All</a></div>
+                        <div class="card-body">
+                            <?php foreach(['Daniel Esbella', 'Doglas Martini', 'Alexander'] as $u): ?>
+                            <div class="list-item">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-light"><?= substr($u,0,1) ?></div>
+                                    <div><h6 class="mb-0 fs-13"><?= $u ?></h6><small class="text-muted">Team Lead</small></div>
                                 </div>
+                                <i class="ti ti-message text-muted"></i>
                             </div>
-                            <div class="col-md col-sm-4 col-6">
-                                <div class="border rounded p-2">
-                                    <p class="mb-1 d-flex align-items-center gap-1"><i class="ti ti-square-rounded-filled text-info fs-13"></i>Not Contacted</p>
-                                    <h6>12566</h6>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>Recent Activities</h5><a href="#" class="fs-12">View All</a></div>
+                        <div class="card-body">
+                            <div class="activity-feed">
+                                <div class="feed-item">
+                                    <div class="feed-icon bg-success"><i class="ti ti-phone"></i></div>
+                                    <p class="mb-0 fs-13">Drain responded to your call.</p><small class="text-muted">09:25 PM</small>
+                                </div>
+                                <div class="feed-item">
+                                    <div class="feed-icon bg-orange"><i class="ti ti-mail"></i></div>
+                                    <p class="mb-0 fs-13">Sent email to James.</p><small class="text-muted">10:00 AM</small>
+                                </div>
+                                <div class="feed-item">
+                                    <div class="feed-icon bg-purple"><i class="ti ti-user"></i></div>
+                                    <p class="mb-0 fs-13">Meeting with Abraham.</p><small class="text-muted">11:00 AM</small>
                                 </div>
                             </div>
                         </div>
-                        <div id="revenue-income"></div> 
                     </div>
                 </div>
-            </div>
-
-            <div class="col-xl-4 d-flex">
-                <div class="card flex-fill">
-                    <div class="card-header">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                            <h5>New Leads</h5>
-                            <div class="dropdown">
-                                <a href="javascript:void(0);" class="btn btn-white border btn-md d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                    <i class="ti ti-calendar me-1 fs-14"></i>This Week
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end p-3">
-                                    <li><a href="javascript:void(0);" class="dropdown-item rounded-1">This Week</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body pb-0">
-                        <div id="heat_chart"></div> 
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-xl-4 d-flex">
-                <div class="card flex-fill">
-                    <div class="card-header">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                            <h5>Lost Leads </h5>
-                            <div class="dropdown">
-                                <a href="javascript:void(0);" class="btn btn-white border-0 dropdown-toggle dropdown-sm btn-sm d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                    Sales Pipeline
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end p-3">
-                                    <li><a href="javascript:void(0);" class="dropdown-item rounded-1">This Month</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body py-0">
-                        <div id="leads_stage"></div> 
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-4 d-flex">
-                <div class="card flex-fill">
-                    <div class="card-header">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                            <h5>Leads by Source</h5>
-                            <div class="dropdown">
-                                <a href="javascript:void(0);" class="btn btn-white border btn-md d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                    <i class="ti ti-calendar me-1 fs-14"></i>This Week
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end p-3">
-                                    <li><a href="javascript:void(0);" class="dropdown-item rounded-1">This Month</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div id="donut-chart-2"></div> 
-                        
-                        <div>
-                            <h6 class="mb-3">Status</h6>
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <p class="f-13 mb-0"><i class="ti ti-circle-filled text-secondary me-1"></i>Google</p>
-                                <p class="f-13 fw-medium text-gray-9">40%</p>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <p class="f-13 mb-0"><i class="ti ti-circle-filled text-warning me-1"></i>Paid</p>
-                                <p class="f-13 fw-medium text-gray-9">35%</p>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <p class="f-13 mb-0"><i class="ti ti-circle-filled text-pink me-1"></i>Campaigns</p>
-                                <p class="f-13 fw-medium text-gray-9">15%</p>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between">
-                                <p class="f-13 mb-0"><i class="ti ti-circle-filled text-purple me-1"></i>Referals</p>
-                                <p class="f-13 fw-medium text-gray-9">10%</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-4 d-flex">
-                <div class="card flex-fill">
-                    <div class="card-header">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                            <h5>Recent Follow Up</h5>
-                            <div><a href="#" class="btn btn-light btn-md">View All</a></div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex align-items-center justify-content-between mb-4">
-                            <div class="d-flex align-items-center">
-                                <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                    <img src="assets/img/users/user-27.jpg" class="rounded-circle border border-2" alt="img">
-                                </a>
-                                <div class="ms-2">
-                                    <h6 class="fs-14 fw-medium text-truncate mb-1"><a href="#">Alexander Jermai</a></h6>
-                                    <p class="fs-13">UI/UX Designer</p>
+                
+                <div class="col-lg-4">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>Notifications</h5><a href="#" class="fs-12">View All</a></div>
+                        <div class="card-body">
+                            <div class="list-item">
+                                <div class="d-flex">
+                                    <div class="avatar-sm">L</div>
+                                    <div><h6 class="mb-0 fs-13">Lex Murphy requested access</h6><small class="text-muted">Today at 9:42 AM</small></div>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center">
-                                <a href="#" class="btn btn-light btn-icon btn-sm d-flex justify-content-center align-items-center border-0 p-2"><i class="ti ti-mail-bolt fs-16"></i></a>
-                            </div>
-                        </div>
-                        </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-xl-5 d-flex">
-                <div class="card flex-fill">
-                    <div class="card-header">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                            <h5>Top Countries</h5>
-                            <div class="dropdown">
-                                <a href="javascript:void(0);" class="btn btn-white border-0 dropdown-toggle dropdown-sm btn-sm d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                    Referrals
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end p-3">
-                                    <li><a href="javascript:void(0);" class="dropdown-item rounded-1">Referrals</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col-xxl-5 col-sm-6">
-                                <div class="pe-3 border-end">
-                                    <?php foreach($top_countries as $country): ?>
-                                    <div class="d-flex align-items-center mb-4">
-                                        <span class="me-2"><i class="ti ti-point-filled text-<?= $country['color'] ?> fs-16"></i></span>
-                                        <a href="countries.html" class="avatar rounded-circle flex-shrink-0 border border-2">
-                                            <img src="<?= $country['img'] ?>" class="img-fluid rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2">
-                                            <h6 class="fw-medium text-truncate mb-1"><a href="countries.html"><?= $country['name'] ?></a></h6>
-                                            <span class="fs-13 text-truncate">Leads : <?= $country['leads'] ?></span>
+                            <div class="list-item">
+                                <div class="d-flex">
+                                    <div class="avatar-sm">R</div>
+                                    <div>
+                                        <h6 class="mb-0 fs-13">Ray Arnold requested access</h6>
+                                        <div class="mt-1">
+                                            <button class="btn btn-sm btn-primary py-0 px-2 fs-11">Approve</button>
+                                            <button class="btn btn-sm btn-outline-danger py-0 px-2 fs-11">Decline</button>
                                         </div>
                                     </div>
-                                    <?php endforeach; ?>
                                 </div>
                             </div>
-                            <div class="col-xxl-7 col-sm-6">
-                                <div id="donut-chart-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-5">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>Top Countries</h5></div>
+                        <div class="card-body d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-3"><i class="ti ti-flag text-danger me-2"></i><div><h6 class="mb-0">USA</h6><small>350 Leads</small></div></div>
+                                <div class="d-flex align-items-center mb-3"><i class="ti ti-flag text-primary me-2"></i><div><h6 class="mb-0">France</h6><small>589 Leads</small></div></div>
+                                <div class="d-flex align-items-center"><i class="ti ti-flag text-warning me-2"></i><div><h6 class="mb-0">India</h6><small>221 Leads</small></div></div>
+                            </div>
+                            <div id="countriesChart" style="width: 150px;"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-7">
+                    <div class="card card-fill">
+                        <div class="card-header"><h5>Recent Leads</h5></div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table mb-0 align-middle">
+                                    <thead class="bg-light"><tr><th>Company</th><th>Stage</th><th>Created</th><th>Owner</th></tr></thead>
+                                    <tbody>
+                                        <?php if(count($recent_leads_db) > 0): ?>
+                                            <?php foreach($recent_leads_db as $l): ?>
+                                            <tr>
+                                                <td><span class="fw-medium"><?= htmlspecialchars($l['company_name']) ?></span></td>
+                                                <td><span class="badge badge-<?= $l['lead_stage'] ?>"><?= $l['lead_stage'] ?></span></td>
+                                                <td><?= date('d M', strtotime($l['created_at'])) ?></td>
+                                                <td><?= htmlspecialchars($l['lead_owner']) ?></td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <tr><td colspan="4" class="text-center p-3">No data available</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-xl-7 d-flex">
-                <div class="card flex-fill">
-                    <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                        <h5>Recent Leads</h5>
-                        <div class="d-flex align-items-center">
-                            <div><a href="leads.html" class="btn btn-light btn-md">View All</a></div>
-                        </div>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">  
-                            <table class="table table-nowrap dashboard-table mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Company Name</th>
-                                        <th>Stage</th>
-                                        <th>Created Date</th>
-                                        <th>Lead Owner</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach($recent_leads as $lead): ?>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center file-name-icon">
-                                                <a href="company-details.html" class="avatar border rounded-circle">
-                                                    <img src="<?= $lead['img'] ?>" class="img-fluid" alt="img">
-                                                </a>
-                                                <div class="ms-2">
-                                                    <h6 class="fw-medium"><a href="company-details.html"><?= $lead['company'] ?></a></h6>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-<?= $lead['badge'] ?> d-inline-flex align-items-center">
-                                                <i class="ti ti-point-filled me-1"></i>
-                                                <?= $lead['stage'] ?>
-                                            </span>
-                                        </td>
-                                        <td><?= $lead['date'] ?></td>
-                                        <td><?= $lead['owner'] ?></td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        </div> </div> <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        lucide.createIcons();
 
-    <div class="footer d-sm-flex align-items-center justify-content-between border-top bg-white p-3">
-        <p class="mb-0">2014 - <?= date("Y"); ?> ©Workack.</p>
-        <p>Designed &amp; Developed By <a href="javascript:void(0);" class="text-primary">neoera infotech</a></p>
-    </div>
+        // Pass PHP Data to JS
+        var pipeLabels = <?php echo json_encode($pipe_labels ?: ['No Data']); ?>;
+        var pipeData = <?php echo json_encode($pipe_data ?: [0]); ?>;
+        var srcLabels = <?php echo json_encode($src_labels ?: ['No Data']); ?>;
+        var srcData = <?php echo json_encode($src_data ?: [1]); ?>;
 
-</div>
+        // 1. Pipeline Chart
+        new ApexCharts(document.querySelector("#pipelineChart"), {
+            series: [{ name: 'Leads', data: pipeData }],
+            chart: { type: 'bar', height: 280, toolbar: {show:false} },
+            colors: ['#FF9B44', '#333', '#7460ee'],
+            plotOptions: { bar: { distributed: true, borderRadius: 4, columnWidth: '40%' } },
+            xaxis: { categories: pipeLabels },
+            legend: { show: false }
+        }).render();
+
+        // 2. Source Chart
+        new ApexCharts(document.querySelector("#sourceChart"), {
+            series: srcData.map(Number),
+            chart: { type: 'donut', height: 260 },
+            labels: srcLabels,
+            colors: ['#FF9B44', '#7460ee', '#fc6075', '#333'],
+            legend: { position: 'bottom' }
+        }).render();
+
+        // 3. Heatmap (Mock Data)
+        new ApexCharts(document.querySelector("#heatmapChart"), {
+            series: [{ name: 'Mon', data: [10,20,30,40,50] }, { name: 'Tue', data: [20,30,40,50,60] }, { name: 'Wed', data: [30,40,50,60,70] }],
+            chart: { type: 'heatmap', height: 280, toolbar: {show:false} },
+            dataLabels: { enabled: false },
+            colors: ['#FF9B44']
+        }).render();
+
+        // 4. Lost Chart (Mock)
+        new ApexCharts(document.querySelector("#lostChart"), {
+            series: [{ name: 'Lost', data: [40, 20, 10, 30] }],
+            chart: { type: 'bar', height: 230, toolbar: {show:false} },
+            colors: ['#fc6075'],
+            xaxis: { categories: ['Competitor', 'Budget', 'Timing', 'Other'] }
+        }).render();
+
+        // 5. Countries Donut (Mock)
+        new ApexCharts(document.querySelector("#countriesChart"), {
+            series: [350, 589, 221],
+            chart: { type: 'donut', height: 140 },
+            colors: ['#fc6075', '#FF9B44', '#009efb'],
+            dataLabels: { enabled: false },
+            legend: { show: false }
+        }).render();
+    </script>
+</body>
+</html>
