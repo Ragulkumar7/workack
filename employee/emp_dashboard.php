@@ -137,7 +137,7 @@ $is_checked_in = $att_today ? true : false;
             <form method="POST">
                 <label>Leave Type</label><br>
                 <select name="leave_type" required style="width:100%; padding:10px; margin-bottom:15px;">
-                    <option value="Casual">Casual</option>
+                    <option value="Casual">Casual leave</option>
                     <option value="Sick">Sick</option>
                     <option value="Earned">Earned</option>
                 </select><br>
