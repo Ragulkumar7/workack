@@ -14,7 +14,8 @@ $sections = [
         'items' => [
             ['name' => 'Dashboard', 'path' => '/', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
             ['name' => 'Team Lead', 'path' => '/teamlead', 'allowed' => ['TL', 'HR', 'Manager']],
-            ['name' => 'HR Mgmt', 'path' => '/hrManagement', 'allowed' => ['Manager', 'HR']],
+            // CHANGED HERE: HR Mgmt -> HR Management
+            ['name' => 'HR Management', 'path' => '/hrManagement', 'allowed' => ['Manager', 'HR']],
             ['name' => 'Directory', 'path' => '/employees', 'allowed' => ['Manager', 'HR']],
             ['name' => 'Manager', 'path' => '/manager', 'allowed' => ['Manager', 'HR']],
         ]
@@ -222,6 +223,15 @@ foreach ($sections as $section) {
         border-bottom: 1px solid #e5e7eb;
         padding: 0 20px;
         overflow-x: auto; 
+        
+        /* HIDE SCROLLBAR LOGIC */
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none;  /* Internet Explorer 10+ */
+    }
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .horizontal-nav::-webkit-scrollbar { 
+        display: none; 
     }
 
     .nav-list {
