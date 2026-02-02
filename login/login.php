@@ -1,31 +1,68 @@
 <?php
-session_start();
+/**
+ * Path Correction: 
+ * If db_connect.php is in the same 'login' folder as this file, 'db_connect.php' works.
+ * If it is in the root 'workack' folder, use '../db_connect.php'.
+ */
+$db_file = 'db_connect.php';
+
+if (file_exists($db_file)) {
+    require_once $db_file;
+} else {
+    die("Error: db_connect.php not found at " . __DIR__ . DIRECTORY_SEPARATOR . $db_file);
+}
 
 $message = "";
 $error = "";
 
-// --- LOGIC HANDLING ---
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'login') {
-        // Hardcoded login for testing
-        $username = $_POST['username'] ?? '';
-        $password = $_POST['password'] ?? '';
-        $role     = $_POST['role'] ?? '';
+        $username = mysqli_real_escape_string($conn, $_POST['username']);
+        $password = $_POST['password'];
+        $role     = mysqli_real_escape_string($conn, $_POST['role']);
 
-        if ($username === "admin" && $password === "password123") {
-            $_SESSION['username'] = $username;
-            $_SESSION['role'] = $role;
-            header("Location: dashboard.php");
-            exit;
+        $stmt = mysqli_prepare($conn, "SELECT password FROM users WHERE username = ? AND role = ?");
+        mysqli_stmt_bind_param($stmt, "ss", $username, $role);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+
+        if ($user = mysqli_fetch_assoc($result)) {
+            if (password_verify($password, $user['password'])) {
+                $_SESSION['username'] = $username;
+                $_SESSION['role'] = $role;
+                // Redirect to dashboard (assuming it's in the root folder /workack/)
+                header("Location: ../dashboard.php"); 
+                exit;
+            } else {
+                $error = "Invalid password!";
+            }
         } else {
-            $error = "Invalid login credentials!";
+            $error = "No user found with those credentials or role.";
         }
+        mysqli_stmt_close($stmt);
+
     } elseif ($action === 'register') {
-        // Simulate registration
-        $reg_user = $_POST['username'] ?? '';
-        $message = "Registration successful for $reg_user! You can now login.";
+        $username = mysqli_real_escape_string($conn, $_POST['username']);
+        $role     = mysqli_real_escape_string($conn, $_POST['role']);
+        $password = $_POST['password'];
+        $confirm  = $_POST['confirm_password'];
+
+        if ($password !== $confirm) {
+            $error = "Passwords do not match!";
+        } else {
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = mysqli_prepare($conn, "INSERT INTO users (username, password, role) VALUES (?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "sss", $username, $hashed_password, $role);
+            
+            if (mysqli_stmt_execute($stmt)) {
+                $message = "Registration successful! You can now login.";
+            } else {
+                $error = "Username already exists or database error.";
+            }
+            mysqli_stmt_close($stmt);
+        }
     }
 }
 ?>
@@ -38,23 +75,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <title>HRMS Portal | Workack</title>
     <style>
         :root { --primary: #1a73e8; --primary-hover: #1557b0; --bg: #f0f2f5; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
         h2 { text-align: center; color: var(--primary); margin-top: 0; }
-        
         .alert { padding: 12px; border-radius: 6px; margin-bottom: 15px; text-align: center; font-size: 14px; }
         .error { color: #d93025; background: #fce8e6; border: 1px solid #f5c2c7; }
         .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
-        
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
         button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
         button:hover { background: var(--primary-hover); }
-        
         .toggle-btn { text-align: center; margin-top: 20px; font-size: 14px; color: #555; }
         .toggle-btn span { color: var(--primary); cursor: pointer; font-weight: bold; text-decoration: underline; }
-        
-        /* Hidden state for toggling */
         .hidden { display: none; }
     </style>
 </head>
@@ -114,11 +145,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <script>
     function toggleForm() {
-        const loginForm = document.getElementById('login-form');
-        const registerForm = document.getElementById('register-form');
-        
-        loginForm.classList.toggle('hidden');
-        registerForm.classList.toggle('hidden');
+        document.getElementById('login-form').classList.toggle('hidden');
+        document.getElementById('register-form').classList.toggle('hidden');
     }
 </script>
 
