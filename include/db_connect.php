@@ -1,6 +1,6 @@
 <?php
 // Database Configuration
-$host = "srv1507.hstgr.io"; // Hostinger MariaDB IP
+$host = "82.197.82.27"; // Hostinger MariaDB IP
 $user = "u957189082_workack";
 $pass = "Workack@2026";
 $db   = "u957189082_workack";
