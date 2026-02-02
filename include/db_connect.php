@@ -1,6 +1,8 @@
 <?php
-// Database Configuration
-$host = "82.197.82.27"; // Hostinger MariaDB IP
+// --- DATABASE CONFIGURATION ---
+// Removed spaces from the hostname. 
+// Using the IP address (82.197.82.27) directly often bypasses DNS issues.
+$host = "82.197.82.27"; 
 $user = "u957189082_workack";
 $pass = "Workack@2026";
 $db   = "u957189082_workack";
@@ -13,7 +15,7 @@ if (!$conn) {
     die("Connection failed: " . mysqli_connect_error());
 }
 
-// Set Charset to match your SQL collation
+// Set Charset
 mysqli_set_charset($conn, "utf8mb4");
 
 // Start Session for User Management
