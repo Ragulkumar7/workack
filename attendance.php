@@ -5,7 +5,7 @@ if (session_status() === PHP_SESSION_NONE) { session_start(); }
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-include '../include/db_connect.php';
+include 'include/db_connect.php';
 
 // Employee ID from session (fallback = 1 for Arun Kumar)
 $emp_id = $_SESSION['emp_id'] ?? 1;
@@ -85,13 +85,13 @@ $result_att = $stmt_att->get_result();
 </style>
 
 <div class="main-wrapper">
-    <?php include '../include/sidebar.php'; ?>
+    <?php include 'include/sidebar.php'; ?>
 
     <div class="content-body">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="fw-bold">Employee Attendance</h4>
-                <small class="text-muted">Attendance > Employee Attendance</small>
+                <!-- <small class="text-muted">Attendance > Employee Attendance</small> -->
             </div>
             <div>
                 <button class="btn btn-outline-secondary btn-sm me-2">Export <i class="fa fa-chevron-down"></i></button>

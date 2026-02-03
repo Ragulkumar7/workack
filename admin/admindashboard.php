@@ -41,12 +41,38 @@ $new_hires       = "45/48";
             --sidebar-width: 70px; 
         }
 
+        /* 1. PREVENT GLOBAL SCROLLING */
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { 
+            height: 100%; 
+            overflow: hidden; /* Removes the bottom and side scroll from body */
+        }
 
-        body { font-family: 'Segoe UI', sans-serif; background: var(--body-bg); display: flex; color: var(--text-dark); min-height: 100vh; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: var(--body-bg); 
+            display: flex; 
+            color: var(--text-dark); 
+        }
 
-        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 25px; width: calc(100% - var(--sidebar-width)); transition: all 0.3s ease; }
+        /* 2. MAIN CONTENT - FIXED HEIGHT SCROLL */
+        .main-content { 
+            flex: 1;
+            margin-left: var(--sidebar-width); 
+            height: 100vh; /* Lock height to window height */
+            overflow-y: auto; /* Only allow vertical scroll inside content */
+            overflow-x: hidden; /* Disable horizontal scroll */
+            padding-bottom: 30px;
+            transition: all 0.3s ease;
+        }
         
+        .container-fluid { 
+            width: 100%; 
+            padding: 25px; 
+            max-width: 100%; /* Ensures nothing pushes the width out */
+        }
+
+        /* Elements design */
         .breadcrumb { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         .welcome-card { background: var(--white); padding: 20px; border-radius: 8px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 30px; border-left: 5px solid var(--primary-orange); }
         .welcome-card img { width: 60px; height: 60px; border-radius: 50%; margin-right: 20px; }
@@ -58,6 +84,7 @@ $new_hires       = "45/48";
         .bg-blue { color: #00c5fb; background: #00c5fb15; }
         .bg-green { color: #55ce63; background: #55ce6315; }
         .bg-red { color: #f62d51; background: #f62d5115; }
+        .bg-purple { color: #7460ee; background: #7460ee15; }
 
         .dashboard-row { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; }
         .triple-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 25px; margin-bottom: 25px; }
@@ -76,7 +103,6 @@ $new_hires       = "45/48";
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
         .modal-content { background-color: white; padding: 30px; border-radius: 15px; width: 450px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .modal-header h2 { font-size: 20px; }
         .close-modal { cursor: pointer; font-size: 20px; color: #888; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: 600; }
@@ -85,10 +111,17 @@ $new_hires       = "45/48";
         .btn-cancel { background: #eee; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
         .btn-save { background: var(--primary-orange); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
 
-        /* Sales Chart Mockup */
+        /* Sales Chart */
         .bar-container { display: flex; align-items: flex-end; gap: 10px; height: 150px; padding-top: 20px; }
         .bar { flex: 1; background: var(--primary-orange); border-radius: 3px 3px 0 0; }
         .status-unpaid { color: #f62d51; background: #f62d5115; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+
+        /* Attendance Gauge */
+        .gauge-container { text-align: center; padding: 20px 0; }
+        .attendance-gauge { width: 220px; height: 110px; border: 18px solid #eee; border-bottom: none; border-radius: 220px 220px 0 0; margin: 0 auto; position: relative; }
+        .gauge-fill { position: absolute; top: -18px; left: -18px; width: 100%; height: 100%; border: 18px solid #55ce63; border-bottom: none; border-radius: 220px 220px 0 0; clip-path: inset(0 30% 0 0); }
+        .gauge-text { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); }
+        .gauge-text h2 { margin: 0; font-size: 28px; }
 
         @media (max-width: 1200px) { .dashboard-row, .triple-row, .stats-grid { grid-template-columns: 1fr; } }
     </style>
@@ -98,6 +131,7 @@ $new_hires       = "45/48";
 <?php include '../include/sidebar.php'; ?>
 
 <main class="main-content">
+    <?php include '../include/header.php'; ?>
     <div class="container-fluid">
         <div class="breadcrumb">
             <div>
@@ -126,22 +160,58 @@ $new_hires       = "45/48";
             <div class="stat-card"><i class="fa fa-user-plus bg-blue"></i><h3>45/48</h3><p>New Hire</p></div>
         </div>
 
+        <div class="dashboard-row">
+            <div class="content-card">
+                <div class="card-header">
+                    <span class="card-title">Employee Status</span>
+                    <a href="employee_list.php" class="view-all">View All</a>
+                </div>
+                <div style="padding:10px 0;">
+                    <p style="font-size: 14px; margin-bottom: 5px;">Total Employee <span style="float:right; font-weight:bold;">154</span></p>
+                    <div style="height:12px; background:#eee; border-radius:10px; overflow:hidden; display:flex; margin-bottom:20px;">
+                        <div style="width:48%; background:#ff9b44"></div>
+                        <div style="width:20%; background:#00c5fb"></div>
+                        <div style="width:22%; background:#f62d51"></div>
+                        <div style="width:10%; background:#55ce63"></div>
+                    </div>
+                    <div class="list-item"><span>Fulltime (48%)</span><strong>112</strong></div>
+                    <div class="list-item"><span>Contract (20%)</span><strong>112</strong></div>
+                    <div class="list-item"><span>Probation (22%)</span><strong>12</strong></div>
+                    <div class="list-item"><span>WFH (20%)</span><strong>04</strong></div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <div class="card-header">
+                    <span class="card-title">Attendance Overview</span>
+                    <a href="attendance_report.php" class="view-all">View Details</a>
+                </div>
+                <div class="gauge-container">
+                    <div class="attendance-gauge">
+                        <div class="gauge-fill"></div>
+                        <div class="gauge-text">
+                            <p style="font-size:12px; color:#888; margin:0;">Total Attendance</p>
+                            <h2>120</h2>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-around; font-size:12px; margin-top:15px;">
+                        <span><i class="fa fa-circle" style="color:#55ce63"></i> Present 59%</span>
+                        <span><i class="fa fa-circle" style="color:#00c5fb"></i> Late 21%</span>
+                        <span><i class="fa fa-circle" style="color:#f62d51"></i> Absent 15%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="triple-row">
             <div class="content-card">
                 <div class="card-header"><span class="card-title">Jobs Applicants</span><a href="applicants_page.php" class="view-all">View All</a></div>
                 <div class="list-item">
                     <div class="user-info">
                         <img src="https://i.pravatar.cc/150?u=1" alt="">
-                        <div><p style="font-size:14px; font-weight:600;">Brian Villalobos</p><small>Exp: 5+ Years • USA</small></div>
+                        <div><p style="font-size:14px; font-weight:600;">Brian Villalobos</p><small>Exp: 5+ Years</small></div>
                     </div>
                     <span style="background:#00c5fb; color:white;" class="badge">UI/UX Designer</span>
-                </div>
-                <div class="list-item">
-                    <div class="user-info">
-                        <img src="https://i.pravatar.cc/150?u=2" alt="">
-                        <div><p style="font-size:14px; font-weight:600;">Anthony Lewis</p><small>Exp: 4+ Years • USA</small></div>
-                    </div>
-                    <span style="background:#ff9b44; color:white;" class="badge">Python Developer</span>
                 </div>
             </div>
 
@@ -152,46 +222,12 @@ $new_hires       = "45/48";
                         <img src="https://i.pravatar.cc/150?u=3" alt="">
                         <div><p style="font-size:14px; font-weight:600;">John Doe</p><small>Software Engineer</small></div>
                     </div>
-                    <span style="color:#00c5fb; font-size:11px; font-weight:600;">Development</span>
-                </div>
-                <div class="list-item">
-                    <div class="user-info">
-                        <img src="https://i.pravatar.cc/150?u=4" alt="">
-                        <div><p style="font-size:14px; font-weight:600;">Richard Miles</p><small>Web Developer</small></div>
-                    </div>
-                    <span style="color:#ff9b44; font-size:11px; font-weight:600;">Marketing</span>
                 </div>
             </div>
 
             <div class="content-card">
                 <div class="card-header"><span class="card-title">Todo List</span><button class="add-btn" id="openTodoModal">+</button></div>
-                <div class="list-item"><label style="font-size:14px;"><input type="checkbox" style="margin-right:10px;"> Add Holidays</label> label></div>
-                <div class="list-item"><label style="font-size:14px;"><input type="checkbox" checked style="margin-right:10px;"> Add Meeting to Client</label></div>
-                <div class="list-item"><label style="font-size:14px;"><input type="checkbox" style="margin-right:10px;"> Chat with Adrian</label></div>
-            </div>
-        </div>
-
-        <div class="dashboard-row">
-            <div class="content-card">
-                <div class="card-header"><span class="card-title">Sales Overview</span></div>
-                <div class="bar-container">
-                    <div class="bar" style="height: 40%;"></div>
-                    <div class="bar" style="height: 70%;"></div>
-                    <div class="bar" style="height: 55%;"></div>
-                    <div class="bar" style="height: 90%;"></div>
-                    <div class="bar" style="height: 65%;"></div>
-                    <div class="bar" style="height: 80%;"></div>
-                </div>
-            </div>
-
-            <div class="content-card">
-                <div class="card-header"><span class="card-title">Invoices</span><a href="#" class="view-all">View All</a></div>
-                <div class="list-item">
-                    <div class="user-info">
-                        <div><p style="font-size:14px; font-weight:600;">#INV-0001</p><small>Global Technologies</small></div>
-                    </div>
-                    <div><span class="status-unpaid">Unpaid</span> <strong style="margin-left:10px;">$2,100</strong></div>
-                </div>
+                <div class="list-item"><label style="font-size:14px;"><input type="checkbox" style="margin-right:10px;"> Add Holidays</label></div>
             </div>
         </div>
     </div>
@@ -208,28 +244,6 @@ $new_hires       = "45/48";
                 <label>Todo Title</label>
                 <input type="text" placeholder="Enter title">
             </div>
-            <div style="display:flex; gap:10px;">
-                <div class="form-group" style="flex:1;">
-                    <label>Tag</label>
-                    <select><option>Projects</option><option>Personal</option></select>
-                </div>
-                <div class="form-group" style="flex:1;">
-                    <label>Priority</label>
-                    <select><option>Select</option><option>High</option><option>Low</option></select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Descriptions</label>
-                <textarea rows="3"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Add Assignee</label>
-                <select><option>Select</option></select>
-            </div>
-            <div class="form-group">
-                <label>Status</label>
-                <select><option>Select</option></select>
-            </div>
             <div class="modal-footer">
                 <button type="button" class="btn-cancel close-modal">Cancel</button>
                 <button type="submit" class="btn-save">Add New Todo</button>
@@ -239,7 +253,6 @@ $new_hires       = "45/48";
 </div>
 
 <script>
-    // Sidebar dynamic width logic
     function checkSidebar() {
         const sidebar = document.querySelector('.sidebar');
         const content = document.querySelector('.main-content');
@@ -253,7 +266,6 @@ $new_hires       = "45/48";
     }
     window.onload = checkSidebar;
 
-    // Modal Logic
     const modal = document.getElementById("todoModal");
     const btn = document.getElementById("openTodoModal");
     const closeBtns = document.querySelectorAll(".close-modal");
@@ -262,9 +274,6 @@ $new_hires       = "45/48";
     closeBtns.forEach(btn => {
         btn.onclick = function() { modal.style.display = "none"; }
     });
-    window.onclick = function(event) {
-        if (event.target == modal) { modal.style.display = "none"; }
-    }
 </script>
 
 </body>
