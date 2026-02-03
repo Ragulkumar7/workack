@@ -1,280 +1,246 @@
 <?php include '../include/header.php'; ?>
+<?php include '../include/sidebar.php'; ?>
 
-<div style="display: flex;"> <?php include '../include/sidebar.php'; ?>
+<?php
+// --- Data Structures ---
+$stats = [
+    ['label' => 'Open Positions', 'value' => '47', 'icon' => 'fa-briefcase', 'color' => '#ff8a65', 'bg' => '#fff5f2'],
+    ['label' => 'Total Candidates', 'value' => '2,384', 'icon' => 'fa-users', 'color' => '#4db6ac', 'bg' => '#f0f7f7'],
+    ['label' => 'Interviews Today', 'value' => '12', 'icon' => 'fa-calendar-days', 'color' => '#757575', 'bg' => '#f5f5f5'],
+    ['label' => 'Offers Released', 'value' => '28', 'icon' => 'fa-file-lines', 'color' => '#42a5f5', 'bg' => '#eef6fe'],
+];
 
-    <?php
-    // 1. DATA INITIALIZATION (Simulating React State and Props)
-    $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
+$hiringData = [
+    ['dept' => 'Marketing', 'role' => 'Product Manager', 'apps' => 14, 'short' => 8, 'int' => 0, 'off' => 0, 'hired' => 0],
+    ['dept' => 'Data Analyst', 'role' => 'Jr Data Analyst', 'apps' => 16, 'short' => 12, 'int' => 0, 'off' => 0, 'hired' => 0],
+    ['dept' => 'Project Coordinator', 'role' => 'Jr Level', 'apps' => 24, 'short' => 6, 'int' => 0, 'off' => 0, 'hired' => 0],
+    ['dept' => 'Design Lead', 'role' => 'UI Designer', 'apps' => 12, 'short' => 8, 'int' => 6, 'off' => 5, 'hired' => 0],
+    ['dept' => 'Project Manager', 'role' => 'Senior Manager', 'apps' => 22, 'short' => 20, 'int' => 16, 'off' => 12, 'hired' => 10],
+];
 
-    $tabs = [
-        ['id' => 'dashboard', 'label' => 'Overview', 'icon' => 'trending-up'],
-        ['id' => 'jobs', 'label' => 'Job Board', 'icon' => 'briefcase'],
-        ['id' => 'pipeline', 'label' => 'Candidate Pipeline', 'icon' => 'users'],
-        ['id' => 'interviews', 'label' => 'Interviews', 'icon' => 'calendar'],
-    ];
+$schedules = [
+    ['month' => 'Mar', 'day' => '02', 'role' => 'Product Designer', 'time' => '09:00 AM - 10:30 AM', 'img' => 'https://i.pravatar.cc/100?u=1'],
+    ['month' => 'Apr', 'day' => '22', 'role' => 'Marketing Manager', 'time' => '01:00 PM - 02:00 PM', 'img' => 'https://i.pravatar.cc/100?u=2'],
+    ['month' => 'May', 'day' => '11', 'role' => 'Sr. Data Science', 'time' => '11:00 AM - 12:30 PM', 'img' => 'https://i.pravatar.cc/100?u=3'],
+    ['month' => 'Jun', 'day' => '07', 'role' => 'Software Engineer', 'time' => '02:00 PM - 03:30 PM', 'img' => 'https://i.pravatar.cc/100?u=4'],
+    ['month' => 'Aug', 'day' => '18', 'role' => 'Financial Analyst', 'time' => '03:00 PM - 04:00 PM', 'img' => 'https://i.pravatar.cc/100?u=5'],
+];
 
-    $stats = [
-        ['label' => 'Active Jobs', 'val' => '08', 'icon' => 'briefcase', 'bg' => 'bg-blue'],
-        ['label' => 'Total Applicants', 'val' => '245', 'icon' => 'users', 'bg' => 'bg-purple'],
-        ['label' => 'In Interview', 'val' => '14', 'icon' => 'calendar', 'bg' => 'bg-orange'],
-        ['label' => 'Hired (Month)', 'val' => '06', 'icon' => 'check-circle', 'bg' => 'bg-green'],
-    ];
+$performanceCards = [
+    ['label' => 'Applied', 'value' => '1,848', 'type' => 'Overall Progress', 'percent' => '36.3%', 'color' => '#f26d21', 'icon' => 'fa-id-card'],
+    ['label' => 'Shortlisted', 'value' => '2,384', 'type' => 'Conversion rate', 'percent' => '37.4%', 'color' => '#0b4c5f', 'icon' => 'fa-hourglass-half'],
+    ['label' => 'Interviewed', 'value' => '892', 'type' => 'Conversion rate', 'percent' => '36.3%', 'color' => '#212529', 'icon' => 'fa-calendar-check'],
+    ['label' => 'Offered', 'value' => '324', 'type' => 'Conversion rate', 'percent' => '26.5%', 'color' => '#2b84ff', 'icon' => 'fa-file-lines'],
+    ['label' => 'Hired', 'value' => '64', 'type' => 'Conversion rate', 'percent' => '41.2%', 'color' => '#00c985', 'icon' => 'fa-user-check'],
+];
 
-    $activities = [
-        ['text' => 'John Doe applied for Senior Developer', 'time' => '2 hours ago'],
-        ['text' => 'Sarah Connor moved to Interview Stage', 'time' => '4 hours ago'],
-        ['text' => 'Offer Letter sent to Mike Ross', 'time' => 'Yesterday'],
-    ];
+$recentApplications = [
+    ['name' => 'Andrew Stuart', 'role' => 'Frontend Developer', 'exp' => '7 years exp', 'applied' => 'Dec 27, 2025', 'status' => 'Interview', 'status_color' => '#9c27b0', 'bg' => '#f3e5f5', 'img' => 'https://i.pravatar.cc/100?u=Andrew'],
+    ['name' => 'Jessica Brown', 'role' => 'UI/UX Designer', 'exp' => '7 years exp', 'applied' => 'Dec 27, 2025', 'status' => 'Shortlisted', 'status_color' => '#006064', 'bg' => '#e0f2f1', 'img' => 'https://i.pravatar.cc/100?u=Jessica'],
+];
 
-    $pending_actions = [
-        ['label' => 'Review 12 new resumes', 'urgent' => true],
-        ['label' => 'Schedule final round for UI Designer', 'urgent' => true],
-        ['label' => 'Update job description for QA Tester', 'urgent' => false],
-    ];
+$activeJobs = [
+    ['id' => 'JOB-001', 'date' => 'Jan 03, 2026', 'title' => 'Frontend Developer', 'priority' => 'High Priority', 'p_class' => 'danger', 'loc' => 'Remote', 'dept' => 'Engineering', 'apps' => '1452'],
+    ['id' => 'JOB-002', 'date' => 'Jan 02, 2026', 'title' => 'Product Manager', 'priority' => 'High Priority', 'p_class' => 'danger', 'loc' => 'Office', 'dept' => 'Product', 'apps' => '1342'],
+    ['id' => 'JOB-003', 'date' => 'Jan 02, 2026', 'title' => 'UX Designer', 'priority' => 'High Priority', 'p_class' => 'danger', 'loc' => 'Hybrid', 'dept' => 'Design', 'apps' => '1287'],
+    ['id' => 'JOB-004', 'date' => 'Jan 01, 2026', 'title' => 'Sales Executive', 'priority' => 'Medium', 'p_class' => 'info', 'loc' => 'Office', 'dept' => 'Sales', 'apps' => '1198'],
+    ['id' => 'JOB-005', 'date' => 'Jan 01, 2026', 'title' => 'DevOps Engineer', 'priority' => 'Medium', 'p_class' => 'info', 'loc' => 'Office', 'dept' => 'Engineering', 'apps' => '1134'],
+];
+?>
 
-    $jobs = [
-        ['title' => 'Senior React Developer', 'dept' => 'Engineering', 'type' => 'Full-time', 'apps' => 45, 'status' => 'Active'],
-        ['title' => 'UI/UX Designer', 'dept' => 'Design', 'type' => 'Remote', 'apps' => 28, 'status' => 'Active'],
-        ['title' => 'Product Manager', 'dept' => 'Product', 'type' => 'Full-time', 'apps' => 12, 'status' => 'Closed'],
-        ['title' => 'Marketing Specialist', 'dept' => 'Marketing', 'type' => 'Contract', 'apps' => 34, 'status' => 'Active'],
-    ];
-
-    $pipeline_stages = [
-        ['label' => 'Applied', 'count' => 12, 'class' => 'col-blue'],
-        ['label' => 'Screening', 'count' => 5, 'class' => 'col-purple'],
-        ['label' => 'Interview', 'count' => 3, 'class' => 'col-orange'],
-        ['label' => 'Offer Sent', 'count' => 1, 'class' => 'col-green'],
-        ['label' => 'Rejected', 'count' => 8, 'class' => 'col-red'],
-    ];
-
-    $interviews = [
-        ['name' => 'Alice Walker', 'role' => 'UI Designer', 'time' => '10:00 AM', 'date' => '28', 'type' => 'Technical Round'],
-        ['name' => 'Bob Martin', 'role' => 'Backend Dev', 'time' => '02:00 PM', 'date' => '28', 'type' => 'HR Round'],
-        ['name' => 'Charlie Day', 'role' => 'Product Manager', 'time' => '11:00 AM', 'date' => '29', 'type' => 'Final Round'],
-    ];
-    ?>
-
-    <script src="https://unpkg.com/lucide@latest"></script>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruitment Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Layout Reset and Sidebar Integration */
-        .rec-main-wrapper {
-            flex: 1; /* Automatically takes up remaining space next to sidebar */
-            background-color: #f4f7fc;
-            min-height: 100vh;
-            padding: 40px;
-            color: #333;
-            box-sizing: border-box;
-            overflow-x: hidden;
-        }
-
-        .rec-container {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        /* Header */
-        .rec-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 20px; }
-        .rec-title { font-size: 28px; font-weight: 800; color: #1a1a1a; margin: 0; }
-        .rec-breadcrumb { font-size: 14px; color: #666; margin-top: 5px; }
+        :root { --primary-orange: #f26d21; --bg-gray: #f8f9fa; --teal-dark: #0b4c5f; }
+        body { background-color: var(--bg-gray); font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
         
-        .btn-primary {
-            background-color: #FF9B44; color: white; border: none; padding: 12px 24px;
-            border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px;
-            box-shadow: 0 4px 10px rgba(255, 155, 68, 0.2); transition: background 0.2s; text-decoration: none;
+        /* UPDATED LAYOUT: Snapping content to sidebar */
+        .main-content { 
+            margin-left: 100px; /* Aligned for the collapsed icon sidebar view */
+            padding: 20px 20px 20px 0px; 
+            transition: all 0.3s; 
         }
 
-        /* Tabs */
-        .rec-tabs { display: flex; gap: 10px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 5px; }
-        .tab-btn {
-            display: flex; align-items: center; gap: 8px; padding: 10px 20px;
-            background: white; border: 1px solid #e1e1e1; border-radius: 8px;
-            color: #666; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap;
-            transition: all 0.2s; text-decoration: none;
+        .main-content .container-fluid {
+            padding-left: 10px !important;
+            margin-left: 0 !important;
         }
-        .tab-btn.active { background: #FF9B44; color: white; border-color: #FF9B44; box-shadow: 0 4px 10px rgba(255, 155, 68, 0.3); }
 
-        /* Stats Grid */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e1e1e1; display: flex; align-items: center; gap: 15px; }
-        .stat-icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .bg-blue { background: #eff6ff; color: #2563eb; }
-        .bg-purple { background: #f3e8ff; color: #9333ea; }
-        .bg-orange { background: #fff7ed; color: #ea580c; }
-        .bg-green { background: #f0fdf4; color: #16a34a; }
-        .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #9ca3af; display: block; margin-bottom: 4px; }
-        .stat-val { font-size: 24px; font-weight: 800; color: #333; margin: 0; }
+        @media (max-width: 991px) { 
+            .main-content { margin-left: 0; padding: 15px; } 
+        }
 
-        /* Split Layout */
-        .split-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
-        @media (max-width: 900px) { .split-grid { grid-template-columns: 1fr; } }
-
-        .content-card { background: white; padding: 25px; border-radius: 12px; border: 1px solid #e1e1e1; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-        .activity-item { display: flex; gap: 15px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; margin-bottom: 15px; }
-        .dot { width: 8px; height: 8px; background: #FF9B44; border-radius: 50%; margin-top: 6px; }
-        .action-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e1e1e1; border-radius: 8px; margin-bottom: 10px; }
-        .urgent-badge { background: #fef2f2; color: #dc2626; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #fecaca; }
-
-        /* Job Board */
-        .job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .job-card { background: white; border: 1px solid #e1e1e1; border-radius: 12px; padding: 25px; transition: transform 0.2s; }
-        .job-status { font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; border: 1px solid; }
-        .status-active { background: #f0fdf4; color: #16a34a; border-color: #dcfce7; }
-
-        /* Pipeline */
-        .pipeline-wrapper { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; }
-        .pipeline-col { min-width: 280px; flex: 1; background: #f8fafc; border: 1px solid #e1e1e1; border-radius: 12px; display: flex; flex-direction: column; }
-        .col-header { padding: 15px; border-bottom: 1px solid #e1e1e1; background: white; border-radius: 12px 12px 0 0; border-top: 4px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
-        .col-blue { border-top-color: #3b82f6; } .col-purple { border-top-color: #9333ea; } 
-        .col-orange { border-top-color: #f97316; } .col-green { border-top-color: #22c55e; } .col-red { border-top-color: #ef4444; }
-
-        /* Interviews */
-        .int-item { display: flex; align-items: center; gap: 15px; padding: 15px; background: white; border: 1px solid #e1e1e1; border-radius: 8px; margin-bottom: 15px; }
-        .date-box { width: 50px; height: 50px; background: #fff0e0; color: #FF9B44; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
-        .form-select, .form-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; background: white; box-sizing: border-box; margin-bottom: 15px; }
-        .schedule-btn { width: 100%; padding: 12px; background: #FF9B44; color: white; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; }
+        .card { border: none; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 20px; background: #fff; }
+        .status-container { display: flex; background: #fff; border-radius: 12px; padding: 25px 10px; margin: 24px 0; border: 1px solid #eee; }
+        .status-item { flex: 1; text-align: center; border-right: 1px solid #f0f0f0; }
+        .status-item:last-child { border-right: none; }
+        .icon-box { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-size: 20px; }
+        .perf-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+        .progress-thin { height: 4px; border-radius: 2px; background-color: #f0f0f0; margin-top: 8px; }
+        .progress-bar-custom { height: 100%; border-radius: 2px; }
+        .badge-pill-stat { width: 80px; padding: 8px 0; border-radius: 20px; color: white; font-weight: bold; display: inline-block; }
+        .ai-avatar { width: 70px; height: 70px; background: #ff6b35; border-radius: 18px; display: flex; align-items: center; justify-content: center; color: white; font-size: 32px; margin: 0 auto 15px; }
+        .chat-bubble { background: #f1f3f5; border-radius: 20px; padding: 10px 18px; display: block; margin-bottom: 10px; font-size: 0.9rem; text-align: left; }
+        .bar-stack { width: 40px; display: flex; flex-direction: column-reverse; gap: 2px; }
+        .segment { width: 100%; border-radius: 3px; }
+        .profile-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .app-card { border: 1px solid #f0f0f0; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .app-badge { font-size: 0.75rem; padding: 5px 12px; border-radius: 15px; font-weight: bold; }
+        .btn-schedule { background: var(--primary-orange); color: white; border: none; border-radius: 8px; width: 100%; padding: 12px; font-weight: bold; }
+        .job-table thead th { background-color: #f1f3f5; border: none; color: #495057; font-weight: 700; font-size: 0.9rem; }
+        .job-table td { vertical-align: middle; border-bottom: 1px solid #eee; padding: 15px 10px; }
+        .priority-badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+        .job-icon { color: #888; font-size: 0.8rem; margin-right: 5px; }
     </style>
+</head>
+<body>
 
-    <div class="rec-main-wrapper">
-        <div class="rec-container">
-            <div class="rec-header">
-                <div>
-                    <h1 class="rec-title">Recruitment & ATS</h1>
-                    <div class="rec-breadcrumb">
-                        Dashboard / <span style="color:#FF9B44; font-weight:bold;">Recruitment</span>
+<div class="main-content">
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card p-4">
+                    <h5 class="fw-bold mb-4">Candidates Hiring Analysis</h5>
+                    <div class="table-responsive">
+                        <table class="table align-middle text-center">
+                            <thead><tr><th class="text-start">Department</th><th>Applicants</th><th>Shortlisted</th><th>Interviewed</th><th>Hired</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($hiringData as $row): ?>
+                                <tr>
+                                    <td class="text-start"><div class="fw-bold"><?= $row['dept'] ?></div><small class="text-muted"><?= $row['role'] ?></small></td>
+                                    <td><span class="badge-pill-stat" style="background:#f26d21"><?= sprintf("%02d", $row['apps']) ?></span></td>
+                                    <td><span class="badge-pill-stat" style="background:#0b4c5f"><?= sprintf("%02d", $row['short']) ?></span></td>
+                                    <td><span class="badge-pill-stat" style="background:<?= $row['int']>0?'#212529':'#e9ecef' ?>"><?= sprintf("%02d", $row['int']) ?></span></td>
+                                    <td><span class="badge-pill-stat" style="background:<?= $row['hired']>0?'#00c985':'#e9ecef' ?>"><?= sprintf("%02d", $row['hired']) ?></span></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <a href="#" class="btn-primary">
-                    <i data-lucide="plus"></i> Post New Job
-                </a>
             </div>
+            <div class="col-lg-4">
+                <div class="card p-4">
+                    <h6 class="fw-bold">Recruitment Overview</h6>
+                    <div class="row text-center my-3"><div class="col-6"><small class="text-muted d-block">Adoption Rate</small><span class="fw-bold fs-5">74.4%</span></div><div class="col-6"><small class="text-muted d-block">Hire Rate</small><span class="fw-bold fs-5">2.7%</span></div></div>
+                    <div class="text-center"><div class="fw-bold fs-4">2,384</div><small class="text-muted">Applications</small></div>
+                </div>
+                <div class="card p-4 text-white" style="background:#0b4c5f">
+                    <small class="opacity-75">Quick Reminder</small><h5 class="mt-2">You have <b>21 Interviews</b> scheduled today!</h5>
+                </div>
+            </div>
+        </div>
 
-            <div class="rec-tabs">
-                <?php foreach ($tabs as $tab): ?>
-                    <a href="?tab=<?php echo $tab['id']; ?>" 
-                       class="tab-btn <?php echo $activeTab === $tab['id'] ? 'active' : ''; ?>">
-                        <i data-lucide="<?php echo $tab['icon']; ?>" size="18"></i> 
-                        <?php echo $tab['label']; ?>
-                    </a>
+        <div class="status-container">
+            <?php foreach ($stats as $s): ?>
+            <div class="status-item">
+                <div class="icon-box" style="background: <?= $s['bg'] ?>; color: <?= $s['color'] ?>;"><i class="fa-solid <?= $s['icon'] ?>"></i></div>
+                <h4 class="fw-bold mb-0"><?= $s['value'] ?></h4><small class="text-muted"><?= $s['label'] ?></small>
+            </div>
+            <?php endforeach; ?>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-4">
+                <div class="card p-4 text-center h-100">
+                    <div class="ai-avatar"><i class="fa-solid fa-robot"></i></div><h5 class="fw-bold">How can I help you today</h5>
+                    <div class="chat-bubble mt-3">Analyze top candidates for Senior Developer role</div>
+                    <div class="chat-bubble">Generate hiring report</div>
+                    <div class="input-group mt-4 bg-light rounded-pill p-1">
+                        <input type="text" class="form-control border-0 bg-transparent ps-3" placeholder="Ask me anything..."><button class="btn btn-orange rounded-circle" style="background:#f26d21; color:white;"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card p-4 h-100"><h6 class="fw-bold mb-4">Average Time To Hire</h6>
+                    <div class="d-flex align-items-end justify-content-around" style="height: 150px; border-bottom: 1px solid #eee;">
+                        <div class="bar-stack"><div class="segment" style="height:80px; background:#0b4c5f"></div></div>
+                        <div class="bar-stack"><div class="segment" style="height:110px; background:#0b4c5f"></div></div>
+                        <div class="bar-stack"><div class="segment" style="height:90px; background:#0b4c5f"></div></div>
+                    </div>
+                    <div class="alert alert-success mt-4 text-center small py-2">12% faster than industry avg</div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card p-4 h-100"><h6 class="fw-bold mb-4">Upcoming Schedules</h6>
+                    <?php foreach ($schedules as $s): ?>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-light rounded p-2 text-center me-3" style="min-width: 50px;"><small class="d-block text-muted" style="font-size: 0.6rem;"><?= $s['month'] ?></small><b class="d-block"><?= $s['day'] ?></b></div>
+                        <div class="flex-grow-1"><div class="fw-bold small"><?= $s['role'] ?></div><small class="text-muted"><?= $s['time'] ?></small></div><img src="<?= $s['img'] ?>" class="profile-img" alt="">
+                    </div>
+                    <?php endforeach; ?><button class="btn w-100 mt-2 text-white fw-bold" style="background:#f26d21; border-radius:10px;">View All Schedule</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4"><h5 class="fw-bold mb-0">Stage Performance</h5><button class="btn btn-sm btn-light border dropdown-toggle"><i class="fa fa-calendar-alt me-1"></i> Last 30 Days</button></div>
+            <div class="row g-3">
+                <?php foreach ($performanceCards as $card): ?>
+                <div class="col"><div class="card p-3 h-100 border" style="box-shadow: none;">
+                        <div class="d-flex justify-content-between"><small class="text-muted fw-bold"><?= $card['label'] ?></small><div class="perf-icon" style="background: <?= $card['color'] ?>;"><i class="fa <?= $card['icon'] ?>"></i></div></div>
+                        <h3 class="fw-bold my-2"><?= $card['value'] ?></h3>
+                        <div class="d-flex justify-content-between small text-muted" style="font-size: 0.75rem;"><span><?= $card['type'] ?></span><span><?= $card['percent'] ?></span></div>
+                        <div class="progress-thin"><div class="progress-bar-custom" style="width: <?= $card['percent'] ?>; background: <?= $card['color'] ?>;"></div></div>
+                    </div></div>
                 <?php endforeach; ?>
             </div>
+        </div>
 
-            <?php if ($activeTab === 'dashboard'): ?>
-                <div class="stats-grid">
-                    <?php foreach ($stats as $s): ?>
-                        <div class="stat-card">
-                            <div class="stat-icon <?php echo $s['bg']; ?>"><i data-lucide="<?php echo $s['icon']; ?>"></i></div>
-                            <div><span class="stat-label"><?php echo $s['label']; ?></span><h2 class="stat-val"><?php echo $s['val']; ?></h2></div>
-                        </div>
-                    <?php endforeach; ?>
+        <div class="card p-4">
+            <h5 class="fw-bold mb-4">Recent Applications</h5>
+            <?php foreach ($recentApplications as $app): ?>
+            <div class="app-card">
+                <div class="d-flex align-items-center mb-3">
+                    <img src="<?= $app['img'] ?>" class="profile-img me-3" style="width: 50px; height: 50px;">
+                    <div class="flex-grow-1"><div class="fw-bold mb-0"><?= $app['name'] ?></div><div class="text-muted small"><?= $app['role'] ?></div></div>
+                    <span class="app-badge" style="background: <?= $app['bg'] ?>; color: <?= $app['status_color'] ?>;"><i class="fa fa-circle small me-1"></i> <?= $app['status'] ?></span>
                 </div>
+                <div class="d-flex justify-content-between align-items-center text-muted small">
+                    <span><i class="fa fa-user me-2"></i> <?= $app['exp'] ?></span><span><i class="fa fa-calendar-alt me-2"></i> Applied: <?= $app['applied'] ?></span>
+                </div>
+            </div>
+            <?php endforeach; ?>
+            <button class="btn-schedule mt-2">View All Schedule</button>
+        </div>
 
-                <div class="split-grid">
-                    <div class="content-card">
-                        <h3 class="card-title">Recent Activities</h3>
-                        <?php foreach ($activities as $act): ?>
-                            <div class="activity-item">
-                                <div class="dot"></div>
-                                <div>
-                                    <p class="act-text"><?php echo $act['text']; ?></p>
-                                    <p class="act-time"><?php echo $act['time']; ?></p>
-                                </div>
-                            </div>
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">Active Job Openings</h5>
+                <button class="btn btn-sm btn-light border px-3">View All</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table job-table">
+                    <thead>
+                        <tr><th>Job ID</th><th>Date</th><th>Job Title</th><th>Location</th><th>Department</th><th>Applicants</th></tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($activeJobs as $job): ?>
+                        <tr>
+                            <td class="text-muted fw-bold"><?= $job['id'] ?></td>
+                            <td><i class="fa-solid fa-calendar-check job-icon"></i> <?= $job['date'] ?></td>
+                            <td>
+                                <div class="fw-bold mb-1"><?= $job['title'] ?></div>
+                                <span class="badge bg-<?= $job['p_class'] ?>-subtle text-<?= $job['p_class'] ?> priority-badge"><?= $job['priority'] ?></span>
+                            </td>
+                            <td class="text-muted"><i class="fa-solid fa-earth-americas job-icon"></i> <?= $job['loc'] ?></td>
+                            <td class="text-muted"><?= $job['dept'] ?></td>
+                            <td><i class="fa-solid fa-users job-icon"></i> <?= $job['apps'] ?></td>
+                        </tr>
                         <?php endforeach; ?>
-                    </div>
-
-                    <div class="content-card">
-                        <h3 class="card-title">Pending Actions</h3>
-                        <?php foreach ($pending_actions as $task): ?>
-                            <div class="action-item">
-                                <span style="font-size:13px; color:#333; font-weight:500;"><?php echo $task['label']; ?></span>
-                                <?php if ($task['urgent']): ?><span class="urgent-badge">URGENT</span><?php endif; ?>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($activeTab === 'jobs'): ?>
-                <div class="job-grid">
-                    <?php foreach ($jobs as $job): ?>
-                        <div class="job-card">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start">
-                                <span class="job-status <?php echo $job['status'] === 'Active' ? 'status-active' : 'status-closed'; ?>">
-                                    <?php echo $job['status']; ?>
-                                </span>
-                                <i data-lucide="more-vertical" style="color:#999; cursor:pointer"></i>
-                            </div>
-                            <h3 style="font-size: 18px; margin: 10px 0 5px 0;"><?php echo $job['title']; ?></h3>
-                            <p style="font-size:13px; color:#666; margin-bottom: 20px;">
-                                <?php echo $job['dept']; ?> • <?php echo $job['type']; ?>
-                            </p>
-                            <div style="border-top: 1px solid #f0f0f0; padding-top:15px; display:flex; justify-content:space-between">
-                                <span style="font-size:13px; font-weight:600;"><i data-lucide="users" size="14"></i> <?php echo $job['apps']; ?> Applicants</span>
-                                <span style="color:#FF9B44; font-weight:700; font-size:13px; cursor:pointer">View Details</span>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($activeTab === 'pipeline'): ?>
-                <div class="pipeline-wrapper">
-                    <?php foreach ($pipeline_stages as $stage): ?>
-                        <div class="pipeline-col">
-                            <div class="col-header <?php echo $stage['class']; ?>">
-                                <h4 style="margin:0"><?php echo $stage['label']; ?></h4>
-                                <span class="col-count"><?php echo $stage['count']; ?></span>
-                            </div>
-                            <div style="padding:15px">
-                                <div style="background:white; padding:15px; border-radius:8px; border:1px solid #e1e1e1; margin-bottom:15px">
-                                    <span style="font-weight:700; display:block">Example Candidate</span>
-                                    <span style="font-size:12px; color:#888">Sample Role</span>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($activeTab === 'interviews'): ?>
-                <div class="split-grid">
-                    <div class="content-card">
-                        <h3 class="card-title">Upcoming Interviews</h3>
-                        <?php foreach ($interviews as $int): ?>
-                            <div class="int-item">
-                                <div class="date-box">
-                                    <span style="font-size:18px; font-weight:800"><?php echo $int['date']; ?></span>
-                                    <span style="font-size:10px; font-weight:700">OCT</span>
-                                </div>
-                                <div style="flex:1">
-                                    <h4 style="margin:0"><?php echo $int['name']; ?></h4>
-                                    <p style="font-size:12px; color:#666"><?php echo $int['role']; ?> • <span style="color:#FF9B44"><?php echo $int['type']; ?></span></p>
-                                </div>
-                                <div style="text-align:right">
-                                    <span style="font-size:12px; font-weight:700"><?php echo $int['time']; ?></span><br>
-                                    <button style="background:#FF9B44; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700">Join</button>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-
-                    <div class="content-card" style="height:fit-content">
-                        <h3 class="card-title">Quick Schedule</h3>
-                        <form action="" method="POST">
-                            <label style="font-size:11px; font-weight:700; color:#666">Candidate</label>
-                            <select class="form-select"><option>Select...</option></select>
-                            <label style="font-size:11px; font-weight:700; color:#666">Date & Time</label>
-                            <input type="datetime-local" class="form-input">
-                            <button type="button" class="schedule-btn">Schedule Interview</button>
-                        </form>
-                    </div>
-                </div>
-            <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-</div> <script>
-    lucide.createIcons();
-</script>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

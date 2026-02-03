@@ -1,318 +1,458 @@
 <?php
-// 1. DATABASE & SESSION (If needed for header/sidebar to work)
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+session_start();
+
+// 1. DATABASE CONNECTION
+$paths = ['../include/db_connect.php', '../../include/db_connect.php', 'include/db_connect.php'];
+$conn = null;
+foreach ($paths as $path) { if (file_exists($path)) { include $path; break; } }
+
+// --- DATA FETCHING ---
+
+// A. Employee Statistics
+$total_emp = 0; $new_joinees = 0; $payroll_cost = 0;
+$full_time = 0; $contract = 0; $probation = 0;
+
+if($conn) {
+    // Counts
+    $total_emp = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM employees WHERE status='Active'"))['c'] ?? 0;
+    
+    // New Joinees (Joined in current month)
+    $new_joinees = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM employees WHERE MONTH(joined_date) = MONTH(CURRENT_DATE()) AND YEAR(joined_date) = YEAR(CURRENT_DATE())"))['c'] ?? 0;
+    
+    // Payroll (Sum of salaries)
+    $payroll_query = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(salary) as s FROM employees WHERE status='Active'"));
+    $payroll_cost = $payroll_query['s'] ?? 0;
+
+    // Employee Types for Chart
+    $full_time = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM employees WHERE employee_type='Full-Time'"))['c'] ?? 0;
+    $contract = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM employees WHERE employee_type='Contract'"))['c'] ?? 0;
+    $probation = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM employees WHERE employee_type='Probation'"))['c'] ?? 0;
 }
-// include '../login/db_connect.php'; // Uncomment if you need DB connection
 
-// 2. DASHBOARD LOGIC (Handling Tabs and Modals)
-$activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'directory';
-$showModal = isset($_GET['modal']) && $_GET['modal'] === 'true';
+// B. Attendance & Late Arrivals
+$late_today = 0;
+if($conn) {
+    $late_today = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM attendance WHERE status='Late' AND work_date = CURDATE()"))['c'] ?? 0;
+}
 
-// --- MOCK DATA ---
-$employees = [
-    ['id' => 'EMP001', 'name' => 'Varshith', 'role' => 'Sr. Developer', 'dept' => 'Engineering', 'status' => 'Active', 'ini' => 'VA'],
-    ['id' => 'EMP002', 'name' => 'Aditi Rao', 'role' => 'UI/UX Designer', 'dept' => 'Design', 'status' => 'Active', 'ini' => 'AR'],
-    ['id' => 'EMP003', 'name' => 'Sanjay Kumar', 'role' => 'DevOps', 'dept' => 'Engineering', 'status' => 'On Leave', 'ini' => 'SK'],
-    ['id' => 'EMP004', 'name' => 'Priya Sharma', 'role' => 'HR Exec', 'dept' => 'People', 'status' => 'Active', 'ini' => 'PS'],
-];
+// C. Leaves
+$sick_count = 0; $casual_count = 0; $unpaid_count = 0;
+$pending_leaves = []; 
 
-$candidates = [
-    ['name' => 'Alex Rivers', 'skills' => 'React, Node, Tailwind', 'exp' => '4 Years', 'status' => 'Screened', 'color' => '#e0f2fe', 'text' => '#0369a1'],
-    ['name' => 'Sarah Connor', 'skills' => 'UI/UX, Figma, Adobe', 'exp' => '5 Years', 'status' => 'Interview', 'color' => '#eef2ff', 'text' => '#4338ca'],
-    ['name' => 'Michael Scott', 'skills' => 'Sales, Management', 'exp' => '10 Years', 'status' => 'Applied', 'color' => '#f0f9ff', 'text' => '#075985'],
-];
+if($conn) {
+    // Counts for Chart
+    $sick_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM leaves WHERE leave_type='Sick'"))['c'] ?? 0;
+    $casual_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM leaves WHERE leave_type='Casual'"))['c'] ?? 0;
+    $unpaid_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM leaves WHERE leave_type='Unpaid'"))['c'] ?? 0; 
 
-$attendance = [
-    ['name' => 'John Doe (Employee)', 'date' => 'Oct 26, 2023', 'in' => '09:02 AM', 'out' => '06:15 PM', 'status' => 'Present', 's_bg' => '#e6fffa', 's_txt' => '#047857', 'leaves' => '2'],
-    ['name' => 'Jane Smith (TL)', 'date' => 'Oct 26, 2023', 'in' => '09:45 AM', 'out' => '06:00 PM', 'status' => 'Late', 's_bg' => '#fff7ed', 's_txt' => '#c2410c', 'leaves' => '1'],
-    ['name' => 'Robert Johnson (Manager)', 'date' => 'Oct 26, 2023', 'in' => '--', 'out' => '--', 'status' => 'Absent', 's_bg' => '#fef2f2', 's_txt' => '#b91c1c', 'leaves' => '5'],
-];
+    // Fetch Pending Approvals List (REMOVED e.image FROM QUERY)
+    $res_leave = mysqli_query($conn, "SELECT l.*, e.name FROM leaves l JOIN employees e ON l.emp_id = e.id WHERE l.status='Pending' LIMIT 3");
+    if($res_leave) { while($row = mysqli_fetch_assoc($res_leave)) $pending_leaves[] = $row; }
+}
 
-$recent_comms = [
-    ['type' => 'COMPANY UPDATE', 'title' => 'New Remote Work Policy - V2.0', 'date' => 'Oct 24, 2023', 'color' => '#f97316'],
-    ['type' => 'EVENT', 'title' => 'Annual Team Retreat 2023 Registration', 'date' => 'Oct 20, 2023', 'color' => '#8b5cf6']
-];
+// D. Recruitment
+$applicants = 0; $hired = 0; 
+if($conn) {
+    $applicants = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM resumes"))['c'] ?? 0;
+    $hired = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM resumes WHERE status='Hired'"))['c'] ?? 0;
+}
+
+// E. Interviews
+$interviews = [];
+if($conn) {
+    $res_int = mysqli_query($conn, "SELECT * FROM interviews WHERE status != 'Completed' ORDER BY id DESC LIMIT 2");
+    if($res_int) { while($row = mysqli_fetch_assoc($res_int)) $interviews[] = $row; }
+}
+
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title>HR Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HR Management System</title>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    
     <style>
-        :root {
-            --primary-orange: #FF9B44;
-            --primary-purple: #63439C;
-            --bg-gray: #f4f6f9;
-            --dark-text: #111;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-gray);
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-        }
-
-        /* FLEXBOX LAYOUT */
-        .main-wrapper {
-            display: flex;
-            width: 100%;
-            min-height: 100vh;
-        }
-
-        .main-content {
-            flex-grow: 1;
-            padding: 30px;
-            box-sizing: border-box;
-            background-color: var(--bg-gray);
-            /* Handle header offset if needed */
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* HR Tabs */
-        .hr-tabs-area {
-            margin-bottom: 30px; display: flex; gap: 15px;
-            background: white; padding: 10px; border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-top: 20px; /* Space from header */
-        }
-
-        .hr-tab-btn {
-            text-decoration: none; display: inline-flex; align-items: center;
-            gap: 10px; padding: 12px 24px; border-radius: 8px;
-            font-size: 14px; font-weight: 600; color: #666; transition: 0.2s;
-        }
-
-        .hr-tab-btn.active { background-color: #f3f0ff; color: var(--primary-purple); }
-
-        .content-card {
-            background: white; padding: 30px; border-radius: 16px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-        }
-
-        .form-input { width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; outline: none; box-sizing: border-box; }
-        .btn-purple { background: var(--primary-purple); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .btn-purple:hover { opacity: 0.9; }
+        body { background-color: #f4f7fc; font-family: 'Poppins', sans-serif; }
+        .main-content-wrapper { display: flex; flex-direction: column; min-height: 100vh; }
+        .page-wrapper { flex: 1; padding: 25px; transition: margin-left 0.3s; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { text-align: left; padding: 15px; color: #222; text-transform: uppercase; font-size: 12px; font-weight: 700; border-bottom: 2px solid #f0f0f0; }
-        td { padding: 18px 15px; border-bottom: 1px solid #f8f9fa; font-size: 14px; }
+        /* Specific SmartHR Card Styles */
+        .card { border: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.02); border-radius: 10px; margin-bottom: 24px; background: #fff; }
+        .card-body { padding: 1.5rem; }
+        .border-start-primary { border-left: 4px solid #FF9B44 !important; }
+        .border-start-secondary { border-left: 4px solid #7460ee !important; }
         
-        .status-badge { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .avatar-circle { width: 40px; height: 40px; background: #fff0e0; color: var(--primary-orange); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 15px; float: left; }
-
-        .stat-list-item { padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
-
-        /* Announcement Specific Styles */
-        .announcement-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 25px; }
-        .form-label { display: block; font-size: 11px; font-weight: 800; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .comm-item { border-bottom: 1px solid #f3f4f6; padding: 15px 0; }
-        .comm-item:last-child { border-bottom: none; }
-        .comm-type { font-size: 10px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; }
-        .comm-title { font-size: 16px; font-weight: 700; color: #111; margin-bottom: 4px; }
-        .comm-date { font-size: 13px; color: #9ca3af; }
-
-        /* Modal Styles */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .modal-content { background: white; width: 850px; padding: 35px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .modal-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px; }
-        .field-group { display: flex; flex-direction: column; gap: 8px; }
-        .field-group label { font-size: 11px; font-weight: 800; color: #4a5568; text-transform: uppercase; }
+        /* Avatars & Text */
+        .avatar { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; object-fit: cover;}
+        .avatar-lg { width: 48px; height: 48px; font-size: 24px; }
+        .avatar-group-md .avatar { width: 36px; height: 36px; margin-right: -10px; border: 2px solid #fff; }
+        .avatar-sm { width: 30px; height: 30px; font-size: 12px; }
+        
+        /* Utilities */
+        .text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fs-13 { font-size: 13px; }
+        .fs-14 { font-size: 14px; }
+        .fs-20 { font-size: 20px; }
+        .fs-24 { font-size: 24px; }
+        .fw-semibold { font-weight: 600; }
+        
+        /* Colors */
+        .bg-primary { background-color: #FF9B44 !important; }
+        .bg-secondary { background-color: #7460ee !important; }
+        .text-primary { color: #FF9B44 !important; }
+        .btn-primary { background-color: #FF9B44 !important; border-color: #FF9B44 !important; }
+        .btn-light { background-color: #f8f9fa; border-color: #f8f9fa; }
+        
+        /* Chart Container */
+        .chart-line { width: 3px; height: 12px; display: inline-block; border-radius: 10px; }
     </style>
+    
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body>
 
-    <div class="main-wrapper">
-        <?php include '../include/sidebar.php'; ?> 
+    <?php if(file_exists('../include/sidebar.php')) include '../include/sidebar.php'; ?>
 
-        <div class="main-content">
-            <?php include '../include/header.php'; ?>
+    <div class="main-content-wrapper">
+        
+        <?php if(file_exists('../include/header.php')) include '../include/header.php'; ?>
 
-            <div class="hr-tabs-area">
-                <a href="?tab=directory" class="hr-tab-btn <?php echo $activeTab == 'directory' ? 'active' : ''; ?>">
-                    <i data-lucide="layout-grid"></i> Employee Directory
-                </a>
-                <a href="?tab=hiring" class="hr-tab-btn <?php echo $activeTab == 'hiring' ? 'active' : ''; ?>">
-                    <i data-lucide="user-plus"></i> Hiring & ATS
-                </a>
-                <a href="?tab=attendance" class="hr-tab-btn <?php echo $activeTab == 'attendance' ? 'active' : ''; ?>">
-                    <i data-lucide="calendar"></i> Attendance Maintenance
-                </a>
-                <a href="?tab=announcements" class="hr-tab-btn <?php echo $activeTab == 'announcements' ? 'active' : ''; ?>">
-                    <i data-lucide="megaphone"></i> Announcements
-                </a>
-            </div>
-
-            <?php if ($activeTab === 'announcements'): ?>
-                <div class="announcement-grid">
-                    <div class="content-card">
-                        <h2 style="margin-top:0; margin-bottom:25px; font-size:24px;">Post Announcement</h2>
-                        <form action="" method="POST">
-                            <div style="margin-bottom: 20px;">
-                                <label class="form-label">Title</label>
-                                <input type="text" class="form-input" placeholder="e.g. Town Hall Meeting">
+        <div class="page-wrapper">
+            <div class="content">
+                
+                <div class="d-flex align-items-center justify-content-between flex-wrap mb-3">
+                    <div class="my-auto mb-2">
+                        <h2 class="mb-1">HR Dashboard</h2>
+                        <nav>
+                            <ol class="breadcrumb mb-0">
+                                <li class="breadcrumb-item"><a href="../index.php">Dashboard</a></li>
+                                <li class="breadcrumb-item active">HR Dashboard</li>
+                            </ol>
+                        </nav>
+                    </div>
+                    <div class="d-flex my-xl-auto right-content align-items-center flex-wrap gap-3 mb-2">
+                        <div class="input-icon position-relative">
+                            <span class="input-icon-addon"><i class="ti ti-calendar text-gray-9"></i></span>
+                            <input type="text" class="form-control" value="<?= date('d/m/Y') ?>">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-xl-5 d-flex flex-column">
+                        
+                        <div class="card flex-fill mb-3">
+                            <div class="card-body">
+                                <div class="border rounded border-start border-start-primary d-flex align-items-center justify-content-between p-2 gap-2 flex-wrap mb-3">
+                                    <h2 class="card-title mb-0">Employee Status & Type</h2>
+                                    <a href="employees.php" class="btn btn-md btn-light">View All</a>
+                                </div>
+                                <div id="status-chart" class="mb-3"></div>
+                                <div class="row">
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <h3 class="main-title mb-1"><?= $full_time ?></h3>
+                                            <p class="d-inline-flex align-items-center mb-0"><span class="chart-line bg-primary me-1"></span>Full-Time</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <h3 class="main-title mb-1"><?= $contract ?></h3>
+                                            <p class="d-inline-flex align-items-center mb-0"><span class="chart-line bg-secondary me-1"></span>Contract</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <h3 class="main-title mb-1"><?= $probation ?></h3>
+                                            <p class="d-inline-flex align-items-center mb-0"><span class="chart-line bg-dark me-1"></span>Probation</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div style="margin-bottom: 25px;">
-                                <label class="form-label">Message</label>
-                                <textarea class="form-input" style="height:150px; resize:none;" placeholder="Message content..."></textarea>
+                        </div>
+
+                        <div class="card flex-fill">
+                            <div class="card-body pb-sm-2">
+                                <div class="border rounded border-start border-start-primary d-flex align-items-center justify-content-between p-2 gap-2 flex-wrap mb-3">
+                                    <h2 class="card-title mb-0">Leave Type Distribution</h2>
+                                    <div class="dropdown">
+                                        <a href="#" class="border btn btn-white btn-md d-inline-flex align-items-center"><i class="ti ti-calendar-due me-1 fs-14"></i>Monthly</a>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-sm-5">
+                                        <div id="leave-chart"></div>
+                                    </div>
+                                    <div class="col-sm-7">
+                                        <div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <p class="d-inline-flex align-items-center text-dark mb-0"><i class="ti ti-circle-filled text-danger fs-7 me-1"></i>Sick Leave</p>
+                                                <span class="badge fw-normal bg-light text-dark border rounded-pill fs-13"><?= $sick_count ?></span>
+                                            </div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <p class="d-inline-flex align-items-center text-dark mb-0"><i class="ti ti-circle-filled text-warning fs-7 me-1"></i>Casual Leave</p>
+                                                <span class="badge fw-normal bg-light text-dark border rounded-pill fs-13"><?= $casual_count ?></span>
+                                            </div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <p class="d-inline-flex align-items-center text-dark mb-0"><i class="ti ti-circle-filled text-dark fs-7 me-1"></i>Unpaid</p>
+                                                <span class="badge fw-normal bg-light text-dark border rounded-pill fs-13"><?= $unpaid_count ?></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div> 
+                        </div> 
+                    </div> 
+
+                    <div class="col-xl-7">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="border rounded border-start border-start-primary d-flex align-items-center justify-content-between p-2 gap-2 flex-wrap mb-3">
+                                    <h2 class="card-title mb-0">Overview Statistics</h2>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6 d-flex">
+                                        <div class="card shadow-none mb-0 flex-fill border">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="avatar avatar-lg bg-primary rounded-circle flex-shrink-0">
+                                                        <i class="ti ti-users-group text-white fs-24"></i>
+                                                    </div>
+                                                    <div class="ms-2"><p class="fw-semibold text-truncate mb-0">Total Employees</p></div>
+                                                </div>
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div>
+                                                        <h3 class="main-title mb-1"><?= number_format($total_emp) ?></h3>
+                                                        <p class="fs-13 mb-0">Headcount Overview</p>
+                                                    </div>
+                                                    <div class="d-inline-flex align-items-center bg-light border rounded-pill text-dark p-1 ps-2">+18% <i class="ti ti-arrow-up-right text-success ms-1"></i></div>
+                                                </div>
+                                            </div> 
+                                        </div> 
+                                    </div> 
+
+                                    <div class="col-md-6 d-flex">
+                                        <div class="card shadow-none mb-0 flex-fill border">
+                                            <div class="card-body">
+                                                <div class="d-flex avatar-lg align-items-center mb-3">
+                                                    <div class="avatar bg-secondary rounded-circle flex-shrink-0">
+                                                        <i class="ti ti-users-plus text-white fs-24"></i>
+                                                    </div>
+                                                    <div class="ms-2"><p class="fw-semibold text-truncate mb-0">New Joinees</p></div>
+                                                </div>
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div>
+                                                        <h3 class="main-title mb-1"><?= $new_joinees ?></h3>
+                                                        <p class="fs-13 mb-0">All Department</p>
+                                                    </div>
+                                                    <div class="d-inline-flex align-items-center bg-light border rounded-pill text-dark p-1 ps-2">+22% <i class="ti ti-arrow-up-right text-success ms-1"></i></div>
+                                                </div>
+                                            </div> 
+                                        </div> 
+                                    </div> 
+
+                                    <div class="col-md-6 d-flex">
+                                        <div class="card shadow-none mb-0 flex-fill border">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="avatar avatar-lg bg-dark rounded-circle flex-shrink-0">
+                                                        <i class="ti ti-clock-x text-white fs-24"></i>
+                                                    </div>
+                                                    <div class="ms-2"><p class="fw-semibold text-truncate mb-0">Late Arrivals Today</p></div>
+                                                </div>
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div>
+                                                        <h3 class="main-title mb-1"><?= $late_today ?></h3>
+                                                        <p class="fs-13 mb-0">Delayed Logins Today</p>
+                                                    </div>
+                                                    <div class="d-inline-flex align-items-center bg-light border rounded-pill text-dark p-1 ps-2">-16% <i class="ti ti-arrow-down-right text-danger ms-1"></i></div>
+                                                </div>
+                                            </div> 
+                                        </div> 
+                                    </div> 
+
+                                    <div class="col-md-6 d-flex">
+                                        <div class="card shadow-none mb-0 flex-fill border">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="avatar avatar-lg bg-primary rounded-circle flex-shrink-0" style="background-color: #9c27b0 !important;">
+                                                        <i class="ti ti-report-money text-white fs-24"></i>
+                                                    </div>
+                                                    <div class="ms-2"><p class="fw-semibold text-truncate mb-0">Total Payroll Cost</p></div>
+                                                </div>
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div>
+                                                        <h3 class="main-title mb-1">$<?= number_format($payroll_cost/1000, 1) ?>K</h3>
+                                                        <p class="fs-13 mb-0">Payroll Outflow</p>
+                                                    </div>
+                                                    <div class="d-inline-flex align-items-center bg-light border rounded-pill text-dark p-1 ps-2">+16% <i class="ti ti-arrow-up-right text-success ms-1"></i></div>
+                                                </div>
+                                            </div> 
+                                        </div> 
+                                    </div> 
+                                </div>
+                            </div> 
+                        </div> 
+                    </div> 
+                </div> 
+                <div class="row">
+                    <div class="col-xl-8 d-flex">
+                        <div class="card flex-fill">
+                            <div class="card-body pb-0">
+                                <div class="border rounded border-start border-start-primary d-flex align-items-center justify-content-between p-2 gap-2 flex-wrap mb-3">
+                                    <h2 class="card-title mb-0">Attendance Trend</h2>
+                                </div>
+                                <div id="attendance-chart" class="w-100"></div>
                             </div>
-                            <button type="button" class="btn-purple" style="width:100%; justify-content:center; padding:15px;">Publish Now</button>
-                        </form>
-                    </div>
-
-                    <div class="content-card">
-                        <h2 style="margin-top:0; margin-bottom:25px; font-size:24px;">Recent Communications</h2>
-                        <?php foreach ($recent_comms as $comm): ?>
-                        <div class="comm-item">
-                            <div class="comm-type" style="color: <?php echo $comm['color']; ?>;"><?php echo $comm['type']; ?></div>
-                            <div class="comm-title"><?php echo $comm['title']; ?></div>
-                            <div class="comm-date"><?php echo $comm['date']; ?></div>
                         </div>
-                        <?php endforeach; ?>
                     </div>
+                    
+                    <div class="col-xl-4 d-flex">
+                        <div class="card flex-fill">
+                            <div class="card-body pb-0">
+                                <div class="border rounded border-start border-start-primary d-flex align-items-center justify-content-between p-2 gap-2 flex-wrap mb-0">
+                                    <h2 class="card-title mb-0">Top Employee Distribution</h2>
+                                    <a href="employees.php" class="btn btn-md btn-light">View All</a>
+                                </div>
+                                <div id="employee-distribution" style="margin-top: 20px;"></div>
+                            </div> 
+                        </div> 
+                    </div> 
                 </div>
-
-            <?php elseif ($activeTab === 'hiring'): ?>
-                <div class="content-card">
-                    <div class="stat-list-item">
-                        <div style="font-weight:800; color:#fb923c; display:flex; align-items:center; gap:10px;"><i data-lucide="users"></i> Open Positions</div>
-                        <div style="padding-left:32px; font-size: 14px; color: #555;">14</div>
-                    </div>
-                    <div class="stat-list-item">
-                        <div style="font-weight:800; color:#3b82f6; display:flex; align-items:center; gap:10px;"><i data-lucide="file-search"></i> Screened</div>
-                        <div style="padding-left:32px; font-size: 14px; color: #555;">482</div>
-                    </div>
-                    <div class="stat-list-item">
-                        <div style="font-weight:800; color:#22c55e; display:flex; align-items:center; gap:10px;"><i data-lucide="calendar-check"></i> Interviews</div>
-                        <div style="padding-left:32px; font-size: 14px; color: #555;">28</div>
-                    </div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top:30px;">
-                        <div style="position:relative; width:400px">
-                            <input placeholder="Search candidates..." class="form-input" style="padding-left: 40px;">
-                            <i data-lucide="search" style="position:absolute; top:12px; left:12px; width:18px; color:#9ca3af"></i>
+                <div class="row">
+                    <div class="col-xl-5 d-flex">
+                        <div class="card flex-fill">
+                            <div class="card-body">
+                                <div class="border rounded border-start border-start-primary d-flex align-items-center justify-content-between p-2 gap-2 flex-wrap mb-3">
+                                    <h2 class="card-title mb-0">Pending Approvals</h2>
+                                    <a href="leaves.php" class="btn btn-md btn-light">View All</a>
+                                </div>
+                                
+                                <?php if(empty($pending_leaves)): ?>
+                                    <p class="text-center text-muted">No pending approvals.</p>
+                                <?php else: ?>
+                                    <?php foreach($pending_leaves as $l): ?>
+                                    <div class="p-2 rounded border d-flex align-items-sm-center justify-content-between gap-2 flex-column flex-sm-row mb-2">
+                                        <div>
+                                            <div class="d-flex align-items-center mb-1">
+                                                <span class="avatar avatar-sm bg-light text-primary fw-bold me-2"><?= strtoupper(substr($l['name'],0,1)) ?></span>
+                                                <div class="ms-2">
+                                                    <p class="fs-14 fw-semibold text-truncate mb-0"><?= htmlspecialchars($l['name']) ?></p>
+                                                </div>
+                                            </div>
+                                            <div class="d-inline-flex align-items-center gap-1">
+                                                <p class="fs-13 d-inline-flex align-items-center mb-0"><i class="ti ti-calendar-up me-1 fs-14"></i><?= date('d M', strtotime($l['start_date'])) ?></p>
+                                                <span>|</span>
+                                                <p class="fs-13 d-inline-flex align-items-center mb-0"><?= $l['days'] ?> days</p>
+                                            </div>
+                                            <p class="fs-13 mb-0 mt-1 text-muted">Reason: <?= htmlspecialchars($l['reason']) ?></p>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <button class="btn btn-sm btn-primary">Approve</button>
+                                            <button class="btn btn-sm btn-light border">Decline</button>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div> 
+                        </div> 
+                    </div> 
+                    
+                    <div class="col-xxl-4 col-xl-12 d-flex">
+                        <div class="card flex-fill">
+                            <div class="card-body d-flex justify-content-between flex-column">
+                                <div>
+                                    <div class="border rounded border-start border-start-primary d-flex align-items-center justify-content-between p-2 gap-2 flex-wrap mb-3">
+                                        <h2 class="card-title mb-0">Upcoming Interview</h2>
+                                    </div>
+                                    
+                                    <?php if(empty($interviews)): ?>
+                                        <p class="text-center text-muted">No scheduled interviews.</p>
+                                    <?php else: ?>
+                                        <?php foreach($interviews as $int): ?>
+                                        <div class="p-3 rounded border border-start border-start-4 border-start-primary mb-3">
+                                            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
+                                                <div>
+                                                    <p class="text-dark fw-semibold mb-1"><?= htmlspecialchars($int['role']) ?></p>
+                                                    <p class="fs-13 mb-0"><?= htmlspecialchars($int['interview_time']) ?></p>
+                                                </div>
+                                                <span class="badge bg-light text-dark border"><?= htmlspecialchars($int['candidate_name']) ?></span>
+                                            </div>
+                                            <div class="row g-2">
+                                                <div class="col-sm-7"><a href="#" class="btn btn-white border d-flex align-items-center justify-content-center w-100">Calendar</a></div>
+                                                <div class="col-sm-5"><a href="#" class="btn btn-light d-flex align-items-center justify-content-center w-100">Join</a></div>
+                                            </div>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
                         </div>
-                        <button class="btn-purple"><i data-lucide="upload-cloud"></i> Bulk Upload</button>
                     </div>
-                    <table>
-                        <thead><tr><th>Candidate</th><th>Matched Skills</th><th>Exp</th><th>Status</th></tr></thead>
-                        <tbody>
-                            <?php foreach ($candidates as $c): ?>
-                            <tr>
-                                <td style="font-weight: 700;"><?php echo $c['name']; ?></td>
-                                <td style="color: var(--primary-orange); font-weight: 600;"><?php echo $c['skills']; ?></td>
-                                <td><?php echo $c['exp']; ?></td>
-                                <td><span class="status-badge" style="background:<?php echo $c['color']; ?>; color:<?php echo $c['text']; ?>;"><?php echo $c['status']; ?></span></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
                 </div>
-
-            <?php elseif ($activeTab === 'attendance'): ?>
-                <div class="content-card">
-                    <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                        <select class="form-input" style="width:150px;"><option>October 2023</option></select>
-                        <select class="form-input" style="width:180px;"><option>All Departments</option></select>
-                    </div>
-                    <table>
-                        <thead><tr><th>Employee</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Status</th><th>Leaves</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            <?php foreach ($attendance as $row): ?>
-                            <tr>
-                                <td style="font-weight: 700;"><?php echo $row['name']; ?></td>
-                                <td><?php echo $row['date']; ?></td>
-                                <td><?php echo $row['in']; ?></td>
-                                <td><?php echo $row['out']; ?></td>
-                                <td><span class="status-badge" style="background:<?php echo $row['s_bg']; ?>; color:<?php echo $row['s_txt']; ?>;"><?php echo $row['status']; ?></span></td>
-                                <td style="color: #059669; font-weight: 700;"><?php echo $row['leaves']; ?></td>
-                                <td><a href="#" style="color:#63439C; text-decoration:none; font-weight:700;">View History</a></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
                 </div>
-
-            <?php elseif ($activeTab === 'directory'): ?>
-                <div class="content-card">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-                        <div style="position:relative; width:300px">
-                            <input placeholder="Search..." class="form-input" style="padding-left:35px;">
-                            <i data-lucide="search" style="position:absolute; top:12px; left:10px; width:16px; color:#999"></i>
-                        </div>
-                        <a href="?tab=directory&modal=true" class="btn-purple" style="background:#111; text-decoration:none;">
-                            <i data-lucide="plus"></i> Add Employee
-                        </a>
-                    </div>
-                    <table>
-                        <thead><tr><th>Employee</th><th>Role</th><th>Dept</th><th>Status</th><th style="text-align: right;">Actions</th></tr></thead>
-                        <tbody>
-                            <?php foreach ($employees as $emp): ?>
-                            <tr>
-                                <td>
-                                    <div class="avatar-circle"><?php echo $emp['ini']; ?></div>
-                                    <div style="font-weight:700;"><?php echo $emp['name']; ?></div>
-                                    <div style="font-size:12px; color:#999;"><?php echo $emp['id']; ?></div>
-                                </td>
-                                <td><?php echo $emp['role']; ?></td>
-                                <td><?php echo $emp['dept']; ?></td>
-                                <td><span class="status-badge" style="background:#e6fffa; color:#047857; text-transform:uppercase;"><?php echo $emp['status']; ?></span></td>
-                                <td style="text-align: right;"><i data-lucide="eye" style="color:#999; cursor:pointer;"></i></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
         </div>
     </div>
 
-    <?php if ($showModal): ?>
-    <div class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add New Employee</h2>
-                <a href="?tab=<?php echo $activeTab; ?>" style="color:inherit;"><i data-lucide="x" size="24"></i></a>
-            </div>
-            <form method="POST">
-                <div class="modal-form-grid">
-                    <div class="field-group"><label>Employee ID</label><input type="text" class="form-input" placeholder="EMP001"></div>
-                    <div class="field-group"><label>Full Name</label><input type="text" class="form-input" placeholder="Enter full name"></div>
-                    <div class="field-group"><label>Email ID</label><input type="email" class="form-input" placeholder="employee@company.com"></div>
-                    <div class="field-group"><label>Role</label>
-                        <select class="form-input">
-                            <option>Software Developer</option>
-                            <option>UI/UX Designer</option>
-                        </select>
-                    </div>
-                    <div class="field-group"><label>Designation</label>
-                        <select class="form-input">
-                            <option>Employee</option>
-                            <option>Team Lead</option>
-                        </select>
-                    </div>
-                    <div class="field-group"><label>Department</label>
-                        <select class="form-input">
-                            <option>Engineering</option>
-                            <option>Design</option>
-                        </select>
-                    </div>
-                    <div class="field-group"><label>Joining Date</label><input type="date" class="form-input"></div>
-                    <div class="field-group"><label>Salary (₹)</label><input type="text" class="form-input" placeholder="Monthly salary"></div>
-                </div>
-                <button type="submit" style="background:var(--primary-purple); color:white; border:none; padding:14px 45px; border-radius:12px; font-weight:700; cursor:pointer; float:right;">Save Employee</button>
-            </form>
-        </div>
-    </div>
-    <?php endif; ?>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 1. Status Chart (Bar)
+        var statusOptions = {
+            series: [{ name: 'Employees', data: [<?= $full_time ?>, <?= $contract ?>, <?= $probation ?>] }],
+            chart: { type: 'bar', height: 200, toolbar: { show: false } },
+            colors: ['#FF9B44', '#7460ee', '#333'], // Matches Primary, Secondary, Dark
+            plotOptions: { bar: { distributed: true, borderRadius: 4, columnWidth: '40%' } },
+            dataLabels: { enabled: false },
+            xaxis: { categories: ['Full-Time', 'Contract', 'Probation'], labels: { style: { fontSize: '12px' } } },
+            legend: { show: false },
+            grid: { show: false }
+        };
+        new ApexCharts(document.querySelector("#status-chart"), statusOptions).render();
 
-    <script>lucide.createIcons();</script>
+        // 2. Leave Chart (Radial Semi-Circle)
+        var leaveOptions = {
+            series: [<?= $sick_count ?>, <?= $casual_count ?>, <?= $unpaid_count ?>],
+            chart: { type: 'radialBar', height: 250, offsetY: -20 },
+            plotOptions: {
+                radialBar: {
+                    startAngle: -90, endAngle: 90,
+                    track: { background: "#e7e7e7", strokeWidth: '97%', margin: 5 },
+                    dataLabels: { name: { show: false }, value: { offsetY: -2, fontSize: '22px' } }
+                }
+            },
+            colors: ['#FF9B44', '#7460ee', '#333'],
+            labels: ['Sick', 'Casual', 'Unpaid'],
+        };
+        new ApexCharts(document.querySelector("#leave-chart"), leaveOptions).render();
+
+        // 3. Attendance Chart (Bar)
+        var attOptions = {
+            series: [
+                { name: 'Present', data: [44, 55, 57, 56, 61, 58, 63] },
+                { name: 'Late', data: [16, 25, 21, 18, 17, 15, 11] },
+                { name: 'Absent', data: [5, 4, 6, 2, 5, 8, 2] }
+            ],
+            chart: { type: 'bar', height: 250, stacked: false, toolbar: { show: false } },
+            colors: ['#FF9B44', '#7460ee', '#ffc107'],
+            plotOptions: { bar: { columnWidth: '50%', borderRadius: 3 } },
+            dataLabels: { enabled: false },
+            xaxis: { categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] }
+        };
+        new ApexCharts(document.querySelector("#attendance-chart"), attOptions).render();
+
+        // 4. Employee Distribution (Donut)
+        var distOptions = {
+            series: [44, 55, 41, 17, 15],
+            chart: { type: 'donut', height: 250 },
+            colors: ['#FF9B44', '#7460ee', '#28C76F', '#EA5455', '#333'],
+            labels: ['IT', 'HR', 'Sales', 'Marketing', 'Finance'],
+            legend: { position: 'bottom' }
+        };
+        new ApexCharts(document.querySelector("#employee-distribution"), distOptions).render();
+    </script>
 </body>
 </html>

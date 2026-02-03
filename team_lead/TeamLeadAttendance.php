@@ -1,33 +1,44 @@
 <?php
-// --- 1. GLOBAL USER DATA ---
+// --- 1. TARGETED DATABASE CONNECTION ---
+$db_path = '../login/db_connect.php';
+
+if (file_exists($db_path)) {
+    include_once($db_path);
+} else {
+    die("<div style='color:red; font-family:sans-serif; padding:20px;'>
+            <strong>Critical Error:</strong> Cannot find db_connect.php at: $db_path <br>
+            Current Folder: " . __DIR__ . "
+         </div>");
+}
+
+// --- 2. GLOBAL USER DATA ---
 $user = [
     'name' => 'TL Manager',
     'role' => 'Team Lead', 
     'avatar_initial' => 'T'
 ];
 
-// --- 2. DASHBOARD SPECIFIC DATA ---
+// --- 3. DASHBOARD SPECIFIC DATA ---
 $tlProfile = [
     'name' => 'TL Manager',
     'role' => 'Team Lead - Engineering',
     'email' => 'tl.manager@company.com'
 ];
 
-// --- 3. ATTENDANCE DATA ---
-$employeesUnderTL = [
-    ['name' => 'Anthony Lewis', 'role' => 'Finance', 'avatar' => 'https://i.pravatar.cc/150?u=ant'],
-    ['name' => 'Brian Villalobos', 'role' => 'PHP Developer', 'avatar' => 'https://i.pravatar.cc/150?u=bri'],
-    ['name' => 'Stephan Peralt', 'role' => 'Executive', 'avatar' => 'https://i.pravatar.cc/150?u=ste'],
-    ['name' => 'Doglas Martini', 'role' => 'Project Manager', 'avatar' => 'https://i.pravatar.cc/150?u=dog'],
-];
+// --- 4. DYNAMIC DATA FETCHING ---
+$employeesUnderTL = [];
 
-// Data for Clock-In/Out (Integrated into the Details Popup)
-$attendanceDetails = [
-    'Anthony Lewis' => ['in' => '08:35 AM', 'out' => '05:30 PM', 'prod' => '08:55 Hrs'],
-    'Brian Villalobos' => ['in' => '09:15 AM', 'out' => '06:15 PM', 'prod' => '09:00 Hrs'],
-    'Stephan Peralt' => ['in' => '09:00 AM', 'out' => '06:00 PM', 'prod' => '09:00 Hrs'],
-    'Doglas Martini' => ['in' => '09:36 AM', 'out' => '06:45 PM', 'prod' => '09:09 Hrs'],
-];
+if (isset($conn) && $conn) {
+    // Fetch all attendance records from the database table
+    $sql = "SELECT * FROM team_attendance";
+    $result = mysqli_query($conn, $sql);
+    
+    if ($result && mysqli_num_rows($result) > 0) {
+        while($row = mysqli_fetch_assoc($result)) {
+            $employeesUnderTL[] = $row;
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -111,25 +122,23 @@ $attendanceDetails = [
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach($employeesUnderTL as $emp): 
-                                $details = $attendanceDetails[$emp['name']];
-                            ?>
+                            <?php foreach($employeesUnderTL as $emp): ?>
                                 <tr class="immersive-row">
                                     <td class="immersive-cell" style="padding-left:20px;">
                                         <div style="display:flex; align-items:center; gap:12px;">
-                                            <img src="<?= $emp['avatar'] ?>" style="width:35px; height:35px; border-radius:50%; object-fit: cover; border: 1px solid #eee;">
-                                            <span style="font-weight:700; font-size:14px; color: #333;"><?= htmlspecialchars($emp['name']) ?></span>
+                                            <img src="<?= htmlspecialchars($emp['avatar']) ?>" style="width:35px; height:35px; border-radius:50%; object-fit: cover; border: 1px solid #eee;">
+                                            <span style="font-weight:700; font-size:14px; color: #333;"><?= htmlspecialchars($emp['employee_name']) ?></span>
                                         </div>
                                     </td>
                                     <td class="immersive-cell">
-                                        <span style="background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;">Present</span>
+                                        <span style="background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;"><?= htmlspecialchars($emp['status']) ?></span>
                                     </td>
-                                    <td class="immersive-cell" style="font-weight: 600; color: #555;">Office</td>
-                                    <td class="immersive-cell" style="color: #888;">Day Shift</td>
+                                    <td class="immersive-cell" style="font-weight: 600; color: #555;"><?= htmlspecialchars($emp['work_type']) ?></td>
+                                    <td class="immersive-cell" style="color: #888;"><?= htmlspecialchars($emp['shift']) ?></td>
                                     <td class="immersive-cell" style="text-align:right; padding-right:20px;">
                                         <i data-lucide="chevron-right" 
                                            style="cursor:pointer; color:#FF9B44;" 
-                                           onclick="openDetails('<?= $emp['name'] ?>', '<?= $details['in'] ?>', '<?= $details['out'] ?>', '<?= $details['prod'] ?>')"></i>
+                                           onclick="openDetails('<?= addslashes($emp['employee_name']) ?>', '<?= $emp['clock_in'] ?>', '<?= $emp['clock_out'] ?>', '<?= $emp['production'] ?>')"></i>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -183,7 +192,6 @@ $attendanceDetails = [
             document.getElementById('detailsModal').classList.remove('active');
         }
 
-        // Close modal when clicking on the overlay background
         window.onclick = function(event) {
             let modal = document.getElementById('detailsModal');
             if (event.target == modal) {
