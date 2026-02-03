@@ -7,6 +7,10 @@ $user = [
 
 // 2. GET CURRENT URL
 $current_path = $_SERVER['REQUEST_URI'];
+// simple helper to check if link is active
+function isActive($path, $current) {
+    return strpos($current, $path) !== false;
+}
 ?>
 
 <?php
@@ -30,15 +34,24 @@ $sections = [
             ['name' => 'Teams', 'path' => '/teams', 'icon' => 'message-square', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts']],
             ['name' => 'Payroll', 'path' => '/payroll', 'icon' => 'banknote', 'allowed' => ['Manager', 'HR']],
             ['name' => 'Recruitment', 'path' => '/recruitment', 'icon' => 'briefcase', 'allowed' => ['Manager', 'HR']],
+            
+            // --- NEW DIGITAL MARKETING CRM SECTION ---
             [
-                'name' => 'Marketing',
-                'icon' => 'phone',
+                'name' => 'Digital Marketing',
+                'icon' => 'target', // Changed icon to Target
                 'allowed' => ['DM', 'Manager'],
                 'subItems' => [
-                    ['name' => 'Manager', 'path' => '/digital-marketing/manager', 'allowed' => ['DM', 'Manager']],
-                    ['name' => 'Executive', 'path' => '/digital-marketing/executive', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Dashboard', 'path' => 'dm_dashboard.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Companies', 'path' => 'companies.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Contacts', 'path' => 'contacts.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Leads', 'path' => 'leads.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Deals', 'path' => 'deals.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Pipeline', 'path' => 'pipeline.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Activities', 'path' => 'activity.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Analytics', 'path' => 'analytics.php', 'allowed' => ['DM', 'Manager']],
                 ]
             ],
+            // -----------------------------------------
         ]
     ],
     [
@@ -75,9 +88,7 @@ foreach ($sections as $section) {
 
     <style>
         :root {
-            /* === CHANGED: Increased sidebar width from 90px to 110px === */
             --sidebar-width: 110px; 
-            
             --active-bg: #EAEAEA;
             --active-border: #D1D1D1;
             --text-color: #555555;
@@ -90,8 +101,8 @@ foreach ($sections as $section) {
             background-color: var(--body-bg);
             font-family: 'Inter', sans-serif;
             margin: 0;
-            padding-left: var(--sidebar-width); 
-            min-height: 100vh;
+            /* Ensure the sidebar spacing is applied if this file is included */
+            /* padding-left: var(--sidebar-width); Remove this if including via PHP in another layout */
             box-sizing: border-box;
         }
 
@@ -124,14 +135,12 @@ foreach ($sections as $section) {
             text-decoration: none;
             cursor: pointer;
             width: 100%;
-            /* === CHANGED: Removed padding to give logo more space === */
             padding: 0; 
             box-sizing: border-box;
         }
 
         .brand-image {
-            /* === CHANGED: Increased size from 85px to 100px === */
-            width: 100px; 
+            width: 80px; 
             height: auto;
             object-fit: contain;
         }
@@ -164,7 +173,6 @@ foreach ($sections as $section) {
             font-weight: 600;
             color: #333;
             text-align: center;
-            /* === CHANGED: Increased max-width slightly for the wider sidebar === */
             max-width: 90px; 
             white-space: nowrap;
             overflow: hidden;
@@ -251,9 +259,20 @@ foreach ($sections as $section) {
             width: 100%;
             padding-bottom: 10px;
         }
+        /* Show submenu if parent is active or toggled */
         .submenu-container.show { display: block; }
-        .sub-link { font-size: 10px; color: #888; text-decoration: none; padding: 5px 0; display: block; text-align: center;}
-        .sub-link:hover { color: orange; }
+        
+        .sub-link { 
+            font-size: 10px; 
+            color: #888; 
+            text-decoration: none; 
+            padding: 6px 0; 
+            display: block; 
+            text-align: center;
+            transition: color 0.2s;
+        }
+        .sub-link:hover { color: #FF9B44; }
+        .sub-link.active { color: #FF9B44; font-weight: 600; }
 
     </style>
 </head>
@@ -262,18 +281,17 @@ foreach ($sections as $section) {
     <aside class="sidebar">
         
         <a href="#" class="brand-logo">
-            
-            <img src="/project2/workack/assets/logo.png" 
+            <img src="../assets/logo.png" 
                  alt="Workack" 
                  class="brand-image"
                  id="sidebarLogo">
                  
             <div id="logoError" style="display:none; font-size: 8px; color: red; text-align: center; margin-top: 5px;">
                 Image Missing<br>
-                Check: assets/logo.png
+                Check path
             </div>
-
         </a>
+
         <a href="/" class="nav-item <?= $current_path === '/' ? 'active' : '' ?>">
             <div class="icon-box">
                 <i data-lucide="home"></i>
@@ -291,12 +309,23 @@ foreach ($sections as $section) {
                     
                     if($itemPath === '/') continue; 
 
-                    $isActive = ($itemPath !== '' && $current_path === $itemPath);
+                    // Check if this item or its subitems are active
+                    $isActive = ($itemPath !== '' && strpos($current_path, $itemPath) !== false);
                     $hasSub = !empty($item['subItems']);
+                    
+                    // If a subitem is active, keep the parent active/open
+                    if ($hasSub) {
+                        foreach($item['subItems'] as $sub) {
+                            if (strpos($current_path, $sub['path']) !== false) {
+                                $isActive = true;
+                                break;
+                            }
+                        }
+                    }
                 ?>
                     
                     <div class="nav-wrapper" style="width: 100%;">
-                        <a href="<?= $itemPath ?: '#' ?>" class="nav-item <?= $isActive ? 'active' : '' ?> <?= $hasSub ? 'submenu-toggle' : '' ?>">
+                        <a href="<?= $hasSub ? '#' : $itemPath ?>" class="nav-item <?= $isActive ? 'active' : '' ?> <?= $hasSub ? 'submenu-toggle' : '' ?>">
                             <div class="icon-box">
                                 <i data-lucide="<?= $item['icon'] ?>"></i>
                             </div>
@@ -304,11 +333,12 @@ foreach ($sections as $section) {
                         </a>
 
                         <?php if ($hasSub): ?>
-                            <div class="submenu-container">
+                            <div class="submenu-container <?= $isActive ? 'show' : '' ?>">
                                 <?php foreach($item['subItems'] as $sub): 
                                     $subPath = $sub['path'] ?? '#';
+                                    $isSubActive = strpos($current_path, $subPath) !== false;
                                 ?>
-                                    <a href="<?=$subPath?>" class="sub-link"><?= $sub['name'] ?></a>
+                                    <a href="<?=$subPath?>" class="sub-link <?= $isSubActive ? 'active' : '' ?>"><?= $sub['name'] ?></a>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
@@ -337,23 +367,24 @@ foreach ($sections as $section) {
 
         document.querySelectorAll('.submenu-toggle').forEach(item => {
             item.addEventListener('click', (e) => {
+                e.preventDefault(); // Prevent default link behavior for toggle items
                 const container = item.nextElementSibling;
                 if(container && container.classList.contains('submenu-container')) {
-                    e.preventDefault();
                     container.classList.toggle('show');
                 }
             })
         });
 
-        // === THIS SCRIPT HELPS DEBUG THE LOGO ===
+        // === LOGO DEBUG ===
         const img = document.getElementById('sidebarLogo');
         const err = document.getElementById('logoError');
         
-        img.onerror = function() {
-            img.style.display = 'none';
-            err.style.display = 'block';
-            console.error("Logo failed to load from: " + img.src);
-        };
+        if(img) {
+            img.onerror = function() {
+                img.style.display = 'none';
+                err.style.display = 'block';
+            };
+        }
     </script>
 </body>
 </html>
