@@ -30,15 +30,24 @@ $sections = [
             ['name' => 'Teams', 'path' => '/teams', 'icon' => 'message-square', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts']],
             ['name' => 'Payroll', 'path' => '/payroll', 'icon' => 'banknote', 'allowed' => ['Manager', 'HR']],
             ['name' => 'Recruitment', 'path' => '/recruitment', 'icon' => 'briefcase', 'allowed' => ['Manager', 'HR']],
+            
+            // --- UPDATED CRM / DIGITAL MARKETING SECTION ---
             [
-                'name' => 'Marketing',
-                'icon' => 'phone',
+                'name' => 'Digital Marketing', // Renamed from Marketing for clarity
+                'icon' => 'target', // Lucide Icon
                 'allowed' => ['DM', 'Manager'],
                 'subItems' => [
-                    ['name' => 'Manager', 'path' => '/digital-marketing/manager', 'allowed' => ['DM', 'Manager']],
-                    ['name' => 'Executive', 'path' => '/digital-marketing/executive', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Dashboard', 'path' => '/workack/digital_marketing/dm_dashboard.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Companies', 'path' => '/workack/digital_marketing/companies.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Contacts', 'path' => '/workack/digital_marketing/contacts.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Leads', 'path' => '/workack/digital_marketing/leads.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Deals', 'path' => '/workack/digital_marketing/deals.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Pipeline', 'path' => '/workack/digital_marketing/pipeline.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Activities', 'path' => '/workack/digital_marketing/activity.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Analytics', 'path' => '/workack/digital_marketing/analytics.php', 'allowed' => ['DM', 'Manager']],
                 ]
             ],
+            // -----------------------------------------------
         ]
     ],
     [
@@ -75,7 +84,7 @@ foreach ($sections as $section) {
 
     <style>
         :root {
-            /* === CHANGED: Increased sidebar width from 90px to 110px === */
+            /* === YOUR CUSTOM WIDTH === */
             --sidebar-width: 110px; 
             
             --active-bg: #EAEAEA;
@@ -124,13 +133,11 @@ foreach ($sections as $section) {
             text-decoration: none;
             cursor: pointer;
             width: 100%;
-            /* === CHANGED: Removed padding to give logo more space === */
             padding: 0; 
             box-sizing: border-box;
         }
 
         .brand-image {
-            /* === CHANGED: Increased size from 85px to 100px === */
             width: 100px; 
             height: auto;
             object-fit: contain;
@@ -164,7 +171,6 @@ foreach ($sections as $section) {
             font-weight: 600;
             color: #333;
             text-align: center;
-            /* === CHANGED: Increased max-width slightly for the wider sidebar === */
             max-width: 90px; 
             white-space: nowrap;
             overflow: hidden;
@@ -262,8 +268,7 @@ foreach ($sections as $section) {
     <aside class="sidebar">
         
         <a href="#" class="brand-logo">
-            
-            <img src="/project2/workack/assets/logo.png" 
+            <img src="/workack/assets/logo.png" 
                  alt="Workack" 
                  class="brand-image"
                  id="sidebarLogo">
@@ -272,8 +277,8 @@ foreach ($sections as $section) {
                 Image Missing<br>
                 Check: assets/logo.png
             </div>
-
         </a>
+        
         <a href="/" class="nav-item <?= $current_path === '/' ? 'active' : '' ?>">
             <div class="icon-box">
                 <i data-lucide="home"></i>
@@ -291,8 +296,18 @@ foreach ($sections as $section) {
                     
                     if($itemPath === '/') continue; 
 
-                    $isActive = ($itemPath !== '' && $current_path === $itemPath);
+                    $isActive = ($itemPath !== '' && strpos($current_path, $itemPath) !== false);
                     $hasSub = !empty($item['subItems']);
+                    
+                    // Keep submenu open if child is active
+                    if($hasSub && !$isActive) {
+                        foreach($item['subItems'] as $sub) {
+                            if (strpos($current_path, $sub['path']) !== false) {
+                                $isActive = true; 
+                                break;
+                            }
+                        }
+                    }
                 ?>
                     
                     <div class="nav-wrapper" style="width: 100%;">
@@ -304,11 +319,12 @@ foreach ($sections as $section) {
                         </a>
 
                         <?php if ($hasSub): ?>
-                            <div class="submenu-container">
+                            <div class="submenu-container <?= $isActive ? 'show' : '' ?>">
                                 <?php foreach($item['subItems'] as $sub): 
                                     $subPath = $sub['path'] ?? '#';
+                                    $isSubActive = (strpos($current_path, $subPath) !== false);
                                 ?>
-                                    <a href="<?=$subPath?>" class="sub-link"><?= $sub['name'] ?></a>
+                                    <a href="<?=$subPath?>" class="sub-link <?= $isSubActive ? 'active text-warning' : '' ?>"><?= $sub['name'] ?></a>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
@@ -345,15 +361,16 @@ foreach ($sections as $section) {
             })
         });
 
-        // === THIS SCRIPT HELPS DEBUG THE LOGO ===
+        // Logo Fallback
         const img = document.getElementById('sidebarLogo');
         const err = document.getElementById('logoError');
-        
-        img.onerror = function() {
-            img.style.display = 'none';
-            err.style.display = 'block';
-            console.error("Logo failed to load from: " + img.src);
-        };
+        if(img){
+            img.onerror = function() {
+                img.style.display = 'none';
+                err.style.display = 'block';
+                console.error("Logo failed to load from: " + img.src);
+            };
+        }
     </script>
 </body>
 </html>
