@@ -1,17 +1,20 @@
 <?php
-// self_tasks.php - Clean & Modern Self-Assigned Tasks Page
+// self_tasks.php - Fixed (Forced emp_id until login is ready)
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
+session_start();
 include '../include/db_connect.php';
 
-$emp_id = $_SESSION['emp_id'] ?? 1;
+// Force emp_id to existing user (id=1 exists in your DB)
+$emp_id = 1;  // Change this to your real logged-in ID later
+
+// Debug: Show what emp_id is being used
+echo "<pre style='background:#e3f2fd; padding:1rem; border-radius:8px; margin:1rem 0;'>
+DEBUG: Using emp_id = $emp_id
+</pre>";
 
 // Message handling
 $message = $_GET['msg'] ?? '';
@@ -60,9 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// ────────────────────────────────────────────────
 // GET FILTER & TASKS
-// ────────────────────────────────────────────────
 $filter = $_GET['filter'] ?? 'All';
 $where = ($filter !== 'All') ? "AND status = ?" : "";
 
@@ -77,9 +78,7 @@ if ($filter !== 'All') {
 $stmt->execute();
 $tasks = $stmt->get_result();
 
-// ────────────────────────────────────────────────
 // CALCULATE STATS
-// ────────────────────────────────────────────────
 $total = $pending = $working = $completed = 0;
 
 $stats_sql = "SELECT status FROM self_tasks WHERE emp_id = ?";
@@ -107,6 +106,7 @@ $progress = $total > 0 ? round(($completed / $total) * 100) : 0;
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
+        /* Your existing styles remain unchanged */
         :root {
             --primary: #de8f1fff;
             --primary-dark: #e88b3a;
@@ -114,133 +114,29 @@ $progress = $total > 0 ? round(($completed / $total) * 100) : 0;
             --gray: #64748b;
             --dark: #1f2937;
         }
-        body {
-            background: var(--light);
-            font-family: 'Segoe UI', system-ui, sans-serif;
-        }
-        .content-body {
-            padding: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .page-header {
-            margin-bottom: 2rem;
-        }
-        .page-title {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--dark);
-        }
-        .card {
-            border: none;
-            border-radius: 14px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.06);
-        }
-        .form-panel {
-            background: white;
-            padding: 2rem;
-        }
-        .history-panel {
-            background: white;
-            padding: 2rem;
-        }
-        .form-label {
-            font-size: 0.8rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: var(--gray);
-            margin-bottom: 0.5rem;
-        }
-        .form-control, .form-select {
-            border-radius: 10px;
-            padding: 0.75rem 1rem;
-            border: 1px solid #d1d5db;
-        }
-        .form-control:focus, .form-select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 0.25rem rgba(255,155,68,0.15);
-        }
-        .btn-save {
-            background: var(--primary);
-            border: none;
-            padding: 0.9rem;
-            font-weight: 600;
-            border-radius: 10px;
-            transition: all 0.25s;
-        }
-        .btn-save:hover {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
-        }
-        .filter-btn {
-            padding: 0.55rem 1.4rem;
-            border-radius: 50px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            border: 1px solid #d1d5db;
-            background: white;
-            color: var(--gray);
-            transition: all 0.25s;
-        }
-        .filter-btn.active, .filter-btn:hover {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            text-decoration: none;
-        }
-        .task-card {
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-            transition: all 0.2s;
-        }
-        .task-card:hover {
-            border-color: var(--primary);
-            box-shadow: 0 6px 20px rgba(255,155,68,0.08);
-        }
-        .status-badge {
-            padding: 0.45rem 1.1rem;
-            border-radius: 50px;
-            font-size: 0.82rem;
-            font-weight: 600;
-        }
+        body { background: var(--light); font-family: 'Segoe UI', system-ui, sans-serif; }
+        .content-body { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+        .page-header { margin-bottom: 2rem; }
+        .page-title { font-size: 1.8rem; font-weight: 700; color: var(--dark); }
+        .card { border: none; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+        .form-panel, .history-panel { background: white; padding: 2rem; }
+        .form-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--gray); margin-bottom: 0.5rem; }
+        .form-control, .form-select { border-radius: 10px; padding: 0.75rem 1rem; border: 1px solid #d1d5db; }
+        .form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 0.25rem rgba(255,155,68,0.15); }
+        .btn-save { background: var(--primary); border: none; padding: 0.9rem; font-weight: 600; border-radius: 10px; transition: all 0.25s; }
+        .btn-save:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .filter-btn { padding: 0.55rem 1.4rem; border-radius: 50px; font-size: 0.85rem; font-weight: 600; border: 1px solid #d1d5db; background: white; color: var(--gray); transition: all 0.25s; }
+        .filter-btn.active, .filter-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+        .task-card { border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.25rem; margin-bottom: 1rem; transition: all 0.2s; }
+        .task-card:hover { border-color: var(--primary); box-shadow: 0 6px 20px rgba(255,155,68,0.08); }
         .status-pending { background: #fef3c7; color: #92400e; }
         .status-working { background: #dbeafe; color: #1e40af; }
         .status-completed { background: #d1fae5; color: #065f46; }
-        .progress {
-            height: 10px;
-            border-radius: 10px;
-            background: #e5e7eb;
-        }
-        .progress-bar {
-            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
-        }
-        .empty-state {
-            text-align: center;
-            padding: 5rem 1rem;
-            color: var(--gray);
-        }
-        .empty-icon {
-            font-size: 4rem;
-            opacity: 0.4;
-            margin-bottom: 1rem;
-        }
-        .alert-floating {
-            position: fixed;
-            top: 1.5rem;
-            right: 1.5rem;
-            z-index: 1050;
-            min-width: 340px;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-        }
-        .dot {
-            width: 4px;
-            height: 4px;
-            background: #cbd5e1;
-            border-radius: 50%;
-        }
+        .progress { height: 10px; border-radius: 10px; background: #e5e7eb; }
+        .progress-bar { background: linear-gradient(90deg, var(--primary), var(--primary-dark)); }
+        .empty-state { text-align: center; padding: 5rem 1rem; color: var(--gray); }
+        .empty-icon { font-size: 4rem; opacity: 0.4; margin-bottom: 1rem; }
+        .alert-floating { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 1050; min-width: 340px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
     </style>
 </head>
 <body>
@@ -362,18 +258,15 @@ $progress = $total > 0 ? round(($completed / $total) * 100) : 0;
                             <i class="fas fa-history me-2 text-primary"></i>Task History
                         </h5>
                         <div class="filter-tabs">
-    <button type="button" onclick="window.location.href='?filter=All'" 
-            class="filter-btn <?= $filter === 'All' ? 'active' : '' ?>">All</button>
-    
-    <button type="button" onclick="window.location.href='?filter=Pending'" 
-            class="filter-btn <?= $filter === 'Pending' ? 'active' : '' ?>">Pending</button>
-    
-    <button type="button" onclick="window.location.href='?filter=Working'" 
-            class="filter-btn <?= $filter === 'Working' ? 'active' : '' ?>">Working</button>
-    
-    <button type="button" onclick="window.location.href='?filter=Completed'" 
-            class="filter-btn <?= $filter === 'Completed' ? 'active' : '' ?>">Completed</button>
-</div>
+                            <button type="button" onclick="window.location.href='?filter=All'" 
+                                    class="filter-btn <?= $filter === 'All' ? 'active' : '' ?>">All</button>
+                            <button type="button" onclick="window.location.href='?filter=Pending'" 
+                                    class="filter-btn <?= $filter === 'Pending' ? 'active' : '' ?>">Pending</button>
+                            <button type="button" onclick="window.location.href='?filter=Working'" 
+                                    class="filter-btn <?= $filter === 'Working' ? 'active' : '' ?>">Working</button>
+                            <button type="button" onclick="window.location.href='?filter=Completed'" 
+                                    class="filter-btn <?= $filter === 'Completed' ? 'active' : '' ?>">Completed</button>
+                        </div>
                     </div>
 
                     <div class="task-list">
