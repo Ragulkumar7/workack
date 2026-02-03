@@ -1,10 +1,15 @@
-<?php include '../include/header.php'; ?>
 <?php
-// Logic for handling Tabs and Modals via URL parameters
+// 1. DATABASE & SESSION (If needed for header/sidebar to work)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+// include '../login/db_connect.php'; // Uncomment if you need DB connection
+
+// 2. DASHBOARD LOGIC (Handling Tabs and Modals)
 $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'directory';
 $showModal = isset($_GET['modal']) && $_GET['modal'] === 'true';
 
-// Mock Data
+// --- MOCK DATA ---
 $employees = [
     ['id' => 'EMP001', 'name' => 'Varshith', 'role' => 'Sr. Developer', 'dept' => 'Engineering', 'status' => 'Active', 'ini' => 'VA'],
     ['id' => 'EMP002', 'name' => 'Aditi Rao', 'role' => 'UI/UX Designer', 'dept' => 'Design', 'status' => 'Active', 'ini' => 'AR'],
@@ -53,7 +58,7 @@ $recent_comms = [
             overflow-x: hidden;
         }
 
-        /* FLEXBOX LAYOUT TO REMOVE SPACE */
+        /* FLEXBOX LAYOUT */
         .main-wrapper {
             display: flex;
             width: 100%;
@@ -65,17 +70,17 @@ $recent_comms = [
             padding: 30px;
             box-sizing: border-box;
             background-color: var(--bg-gray);
+            /* Handle header offset if needed */
+            display: flex;
+            flex-direction: column;
         }
 
-        aside, .sidebar {
-            flex-shrink: 0;
-        }
-
-        /* Dashboard Components */
+        /* HR Tabs */
         .hr-tabs-area {
             margin-bottom: 30px; display: flex; gap: 15px;
             background: white; padding: 10px; border-radius: 12px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-top: 20px; /* Space from header */
         }
 
         .hr-tab-btn {
@@ -116,6 +121,7 @@ $recent_comms = [
         /* Modal Styles */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .modal-content { background: white; width: 850px; padding: 35px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         .modal-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px; }
         .field-group { display: flex; flex-direction: column; gap: 8px; }
         .field-group label { font-size: 11px; font-weight: 800; color: #4a5568; text-transform: uppercase; }
@@ -127,6 +133,8 @@ $recent_comms = [
         <?php include '../include/sidebar.php'; ?> 
 
         <div class="main-content">
+            <?php include '../include/header.php'; ?>
+
             <div class="hr-tabs-area">
                 <a href="?tab=directory" class="hr-tab-btn <?php echo $activeTab == 'directory' ? 'active' : ''; ?>">
                     <i data-lucide="layout-grid"></i> Employee Directory
