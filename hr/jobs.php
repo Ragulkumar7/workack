@@ -2,12 +2,13 @@
 session_start();
 
 // 1. DATABASE CONNECTION
-// Checking multiple paths to ensure connection works from 'hr' folder
 $paths = ['../include/db_connect.php', '../../include/db_connect.php', 'include/db_connect.php'];
 $conn = null;
 foreach ($paths as $path) { if (file_exists($path)) { include $path; break; } }
 
-if (!isset($conn)) die("Error: DB connection not found.");
+if (!isset($conn)) {
+    die('<div style="padding:20px;color:red;"><b>Error:</b> Database connection not found. Please check your include paths.</div>');
+}
 
 // 2. HANDLE FORM SUBMISSION (ADD JOB)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_job_submit'])) {
@@ -41,9 +42,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_job_submit'])) {
     $zip   = mysqli_real_escape_string($conn, $_POST['zipcode']);
     
     // Handle Image Upload
-    $imagePath = 'assets/img/icons/apple.svg'; // Default fallback
+    $imagePath = '../assets/img/icons/apple.svg'; // Default fallback
     if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
-        $target_dir = "../uploads/jobs/"; // Upload to workack/uploads/jobs/
+        $target_dir = "../uploads/jobs/";
         if (!file_exists($target_dir)) mkdir($target_dir, 0777, true);
         
         $fileExtension = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
@@ -51,8 +52,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_job_submit'])) {
         $target_file = $target_dir . $fileName;
         
         if (move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)) {
-            // Save path relative to the hr folder for easy display later
-            $imagePath = "../uploads/jobs/" . $fileName;
+            $imagePath = $target_file;
         }
     }
 
@@ -60,9 +60,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_job_submit'])) {
             VALUES ('$title', '$imagePath', '$desc', '$cat', '$type', '$level', '$exp', '$qual', '$gen', '$min_s', '$max_s', '$expiry', '$skills', '$addr', '$country', '$state', '$city', '$zip')";
 
     if (mysqli_query($conn, $sql)) {
-        header("Location: jobs.php?msg=success"); exit();
+        // Redirect to clear post data
+        echo "<script>window.location.href='jobs.php';</script>"; 
+        exit();
     } else {
-        echo "Error: " . mysqli_error($conn);
+        echo "<script>alert('Error: " . mysqli_error($conn) . "');</script>";
     }
 }
 
@@ -85,8 +87,8 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $jobs[] = $row; }
     
     <style>
         body { background-color: #f4f7fc; font-family: 'Poppins', sans-serif; }
-        .main-content-wrapper { display: flex; flex-direction: column; min-height: 100vh; margin-left: 110px; transition: margin-left 0.3s; }
-        .page-wrapper { flex: 1; padding: 25px; }
+        .main-content-wrapper { display: flex; flex-direction: column; min-height: 100vh; }
+        .page-wrapper { flex: 1; padding: 25px; transition: margin-left 0.3s; }
         
         /* Card Styles */
         .card { border: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.02); border-radius: 10px; margin-bottom: 24px; background: #fff; }
@@ -104,27 +106,22 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $jobs[] = $row; }
         
         /* Progress */
         .progress-xs { height: 6px; }
+        .progress-bar { background-color: #FF9B44; }
         
         /* Modal Profile Upload */
         .profile-upload .avatar-xxl { width: 80px; height: 80px; }
         .profile-upload .avatar-xxl img { width: 100%; height: 100%; object-fit: cover; }
         
         .btn-primary { background-color: #FF9B44 !important; border-color: #FF9B44 !important; }
-        
-        @media (max-width: 991px) { .main-content-wrapper { margin-left: 0; } }
     </style>
 </head>
 <body>
 
-    <?php 
-        if(file_exists('../include/sidebar.php')) include '../include/sidebar.php'; 
-    ?>
+    <?php if(file_exists('../include/sidebar.php')) include '../include/sidebar.php'; ?>
 
     <div class="main-content-wrapper">
         
-        <?php 
-            if(file_exists('../include/header.php')) include '../include/header.php';
-        ?>
+        <?php if(file_exists('../include/header.php')) include '../include/header.php'; ?>
 
         <div class="page-wrapper">
             <div class="content">
@@ -134,19 +131,12 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $jobs[] = $row; }
                         <h2 class="mb-1">Jobs</h2>
                         <nav>
                             <ol class="breadcrumb mb-0">
-                                <li class="breadcrumb-item"><a href="index.html"><i class="ti ti-smart-home"></i></a></li>
-                                <li class="breadcrumb-item">Recruitment</li>
+                                <li class="breadcrumb-item"><a href="../index.php">Dashboard</a></li>
                                 <li class="breadcrumb-item active" aria-current="page">Jobs</li>
                             </ol>
                         </nav>
                     </div>
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
-                        <div class="me-2 mb-2">
-                            <div class="d-flex align-items-center border bg-white rounded p-1 me-2 icon-list">
-                                <a href="#" class="btn btn-icon btn-sm me-1"><i class="ti ti-list-tree"></i></a>
-                                <a href="#" class="btn btn-icon btn-sm active bg-primary text-white"><i class="ti ti-layout-grid"></i></a>
-                            </div>
-                        </div>
                         <div class="me-2 mb-2">
                             <div class="dropdown">
                                 <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
@@ -158,11 +148,12 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $jobs[] = $row; }
                                 </ul>
                             </div>
                         </div>
-                        <div class="mb-2">
+                        <div class="mb-2 ms-2">
                             <a href="#" data-bs-toggle="modal" data-bs-target="#add_post" class="btn btn-primary d-flex align-items-center"><i class="ti ti-circle-plus me-2"></i>Post Job</a>
                         </div>
                     </div>
                 </div>
+
                 <div class="card">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
@@ -177,8 +168,8 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $jobs[] = $row; }
                                 <div class="dropdown me-3">
                                     <a href="#" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">Role</a>
                                     <ul class="dropdown-menu dropdown-menu-end p-3">
-                                        <li><a href="#" class="dropdown-item rounded-1">Senior IOS Developer</a></li>
-                                        <li><a href="#" class="dropdown-item rounded-1">Junior PHP Developer</a></li>
+                                        <li><a href="#" class="dropdown-item rounded-1">Developer</a></li>
+                                        <li><a href="#" class="dropdown-item rounded-1">Designer</a></li>
                                     </ul>
                                 </div>
                                 <div class="dropdown me-3">
@@ -194,65 +185,76 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $jobs[] = $row; }
                 </div>
 
                 <div class="row">
-                    <?php foreach($jobs as $job): 
-                        $total = $job['total_vacancies'] > 0 ? $job['total_vacancies'] : 1;
-                        $filled = $job['filled_vacancies'];
-                        $percent = ($filled / $total) * 100;
-                        
-                        // Image Path Logic
-                        $img = !empty($job['image']) ? $job['image'] : '../assets/img/icons/apple.svg';
-                    ?>
-                    <div class="col-xl-3 col-lg-4 col-md-6">
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="card bg-light">
-                                    <div class="card-body p-3">
-                                        <div class="d-flex align-items-center">
-                                            <a href="#" class="me-2">
-                                                <span class="avatar avatar-lg bg-gray">
-                                                    <img src="<?= htmlspecialchars($img) ?>" class="w-auto h-auto" alt="icon" onerror="this.src='../assets/img/icons/apple.svg'">
-                                                </span>
-                                            </a>
-                                            <div>
-                                                <h6 class="fw-medium mb-1 text-truncate" style="max-width:150px;"><a href="#"><?= htmlspecialchars($job['title']) ?></a></h6>
-                                                <p class="fs-12 text-gray-5 fw-normal"><?= $job['applicants'] ?> Applicants</p>
+                    <?php if(empty($jobs)): ?>
+                        <div class="col-12 text-center p-5">
+                            <h4>No Jobs Found</h4>
+                            <p class="text-muted">Click "Post Job" to add a new job listing.</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach($jobs as $job): 
+                            $total = $job['total_vacancies'] > 0 ? $job['total_vacancies'] : 1;
+                            $filled = $job['filled_vacancies'];
+                            $percent = ($filled / $total) * 100;
+                            
+                            // Image Path Logic
+                            $img = !empty($job['image']) ? $job['image'] : '../assets/img/icons/apple.svg';
+                            
+                            // Location Logic
+                            $location = $job['city'];
+                            if($job['country']) $location .= ', ' . $job['country'];
+                        ?>
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex align-items-center">
+                                                <a href="#" class="me-2">
+                                                    <span class="avatar avatar-lg bg-gray">
+                                                        <img src="<?= htmlspecialchars($img) ?>" class="w-auto h-auto" alt="icon" onerror="this.src='../assets/img/icons/apple.svg'">
+                                                    </span>
+                                                </a>
+                                                <div>
+                                                    <h6 class="fw-medium mb-1 text-truncate" style="max-width:150px;"><a href="#"><?= htmlspecialchars($job['title']) ?></a></h6>
+                                                    <p class="fs-12 text-gray-5 fw-normal"><?= $job['applicants'] ?> Applicants</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
+                                    <div class="d-flex flex-column mb-3">
+                                        <p class="text-dark d-inline-flex align-items-center mb-2">
+                                            <i class="ti ti-map-pin-check text-gray-5 me-2"></i>
+                                            <?= htmlspecialchars($location) ?>
+                                        </p>
+                                        <p class="text-dark d-inline-flex align-items-center mb-2">
+                                            <i class="ti ti-currency-dollar text-gray-5 me-2"></i>
+                                            <?= number_format((float)$job['salary_min']) ?> - <?= number_format((float)$job['salary_max']) ?>
+                                        </p>
+                                        <p class="text-dark d-inline-flex align-items-center">
+                                            <i class="ti ti-briefcase text-gray-5 me-2"></i>
+                                            <?= htmlspecialchars($job['experience']) ?>
+                                        </p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <span class="badge badge-pink-transparent me-2"><?= htmlspecialchars($job['job_type']) ?></span>
+                                        <span class="badge bg-secondary-transparent"><?= htmlspecialchars($job['level']) ?></span>
+                                    </div>
+                                    <div class="progress progress-xs mb-2">
+                                        <div class="progress-bar bg-warning" role="progressbar" style="width: <?= $percent ?>%"></div>
+                                    </div>
+                                    <div><p class="fs-12 text-gray-5 fw-normal"><?= $filled ?> of <?= $total ?> filled</p></div>
                                 </div>
-                                <div class="d-flex flex-column mb-3">
-                                    <p class="text-dark d-inline-flex align-items-center mb-2">
-                                        <i class="ti ti-map-pin-check text-gray-5 me-2"></i>
-                                        <?= htmlspecialchars($job['city'] . ', ' . $job['country']) ?>
-                                    </p>
-                                    <p class="text-dark d-inline-flex align-items-center mb-2">
-                                        <i class="ti ti-currency-dollar text-gray-5 me-2"></i>
-                                        <?= number_format((float)$job['salary_min']) ?> - <?= number_format((float)$job['salary_max']) ?>
-                                    </p>
-                                    <p class="text-dark d-inline-flex align-items-center">
-                                        <i class="ti ti-briefcase text-gray-5 me-2"></i>
-                                        <?= htmlspecialchars($job['experience']) ?>
-                                    </p>
-                                </div>
-                                <div class="mb-3">
-                                    <span class="badge badge-pink-transparent me-2"><?= htmlspecialchars($job['job_type']) ?></span>
-                                    <span class="badge bg-secondary-transparent"><?= htmlspecialchars($job['level']) ?></span>
-                                </div>
-                                <div class="progress progress-xs mb-2">
-                                    <div class="progress-bar bg-warning" role="progressbar" style="width: <?= $percent ?>%"></div>
-                                </div>
-                                <div><p class="fs-12 text-gray-5 fw-normal"><?= $filled ?> of <?= $total ?> filled</p></div>
                             </div>
                         </div>
-                    </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
 
             </div>
             
             <div class="footer d-sm-flex align-items-center justify-content-between border-top bg-white p-3">
-                <p class="mb-0">2014 - 2026 &copy; SmartHR.</p>
-                <p>Designed &amp; Developed By <a href="#" class="text-primary">Dreams</a></p>
+                <p class="mb-0">2014 - 2026 © SmartHR.</p>
+                <p>Designed & Developed By <a href="#" class="text-primary">Dreams</a></p>
             </div>
         </div>
         </div>
