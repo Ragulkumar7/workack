@@ -28,18 +28,13 @@ $sections = [
             ['name' => 'Attendance', 'path' => '/EmployeeAttendance', 'icon' => 'calendar-check', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
             ['name' => 'Tasks', 'path' => '/tasks', 'icon' => 'clipboard-list', 'allowed' => ['Manager', 'TL', 'Employee', 'HR', 'DM']],
             ['name' => 'Teams', 'path' => '/teams', 'icon' => 'message-square', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts']],
-            ['name' => 'Payroll', 'path' => '/payroll', 'icon' => 'banknote', 'allowed' => ['Manager', 'HR', 'Accounts']],
-            
-            // --- NEW ACCOUNTS OPTION ---
-            ['name' => 'Accounts', 'path' => '/accounts', 'icon' => 'calculator', 'allowed' => ['Manager', 'HR', 'Accounts']],
-            // ---------------------------
-
+            ['name' => 'Payroll', 'path' => '/payroll', 'icon' => 'banknote', 'allowed' => ['Manager', 'HR']],
             ['name' => 'Recruitment', 'path' => '/recruitment', 'icon' => 'briefcase', 'allowed' => ['Manager', 'HR']],
             
-            // --- DIGITAL MARKETING SECTION ---
+            // --- UPDATED CRM / DIGITAL MARKETING SECTION ---
             [
-                'name' => 'Digital Marketing', 
-                'icon' => 'target', 
+                'name' => 'Digital Marketing', // Renamed from Marketing for clarity
+                'icon' => 'target', // Lucide Icon
                 'allowed' => ['DM', 'Manager'],
                 'subItems' => [
                     ['name' => 'Dashboard', 'path' => '/workack/digital_marketing/dm_dashboard.php', 'allowed' => ['DM', 'Manager']],
@@ -52,6 +47,7 @@ $sections = [
                     ['name' => 'Analytics', 'path' => '/workack/digital_marketing/analytics.php', 'allowed' => ['DM', 'Manager']],
                 ]
             ],
+            // -----------------------------------------------
         ]
     ],
     [
@@ -88,7 +84,7 @@ foreach ($sections as $section) {
 
     <style>
         :root {
-            /* === SIDEBAR WIDTH === */
+            /* === YOUR CUSTOM WIDTH === */
             --sidebar-width: 110px; 
             
             --active-bg: #EAEAEA;
@@ -272,7 +268,7 @@ foreach ($sections as $section) {
     <aside class="sidebar">
         
         <a href="#" class="brand-logo">
-            <img src="/project2/workack/assets/logo.png" 
+            <img src="/workack/assets/logo.png" 
                  alt="Workack" 
                  class="brand-image"
                  id="sidebarLogo">
