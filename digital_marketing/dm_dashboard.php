@@ -6,6 +6,7 @@ session_start();
 $db_paths = [
     '../include/db_connect.php', 
     '../../include/db_connect.php',
+    'include/db_connect.php',
     'db_connect.php'
 ];
 
@@ -22,6 +23,12 @@ if (!isset($conn)) {
     die("<div style='color:red;padding:20px;'><b>Error:</b> Database connection file not found or connection failed. Checked paths: " . implode(', ', $db_paths) . "</div>");
 }
 
+// --- SECURE SESSION CHECK (Optional but recommended) ---
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../login/login.php");
+    exit();
+}
+
 // --- 2. FETCH REAL DATA FROM DB ---
 try {
     // Helper function for counts
@@ -31,26 +38,34 @@ try {
     }
 
     // A. KPI Metrics
-    $total_leads = get_db_count($conn, "SELECT COUNT(*) FROM leads");
-    $new_leads   = get_db_count($conn, "SELECT COUNT(*) FROM leads WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
-    $lost_leads  = get_db_count($conn, "SELECT COUNT(*) FROM leads WHERE lead_stage = 'Lost'");
-    $customers   = get_db_count($conn, "SELECT COUNT(*) FROM leads WHERE lead_stage = 'Closed'");
+    // Check if table exists first to avoid crash if you haven't created 'leads' table yet
+    $check_table = mysqli_query($conn, "SHOW TABLES LIKE 'leads'");
+    if(mysqli_num_rows($check_table) > 0) {
+        $total_leads = get_db_count($conn, "SELECT COUNT(*) FROM leads");
+        $new_leads   = get_db_count($conn, "SELECT COUNT(*) FROM leads WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+        $lost_leads  = get_db_count($conn, "SELECT COUNT(*) FROM leads WHERE lead_stage = 'Lost'");
+        $customers   = get_db_count($conn, "SELECT COUNT(*) FROM leads WHERE lead_stage = 'Closed'");
 
-    // B. Charts Data (Dynamic from DB)
-    // Pipeline
-    $pipe_labels = []; $pipe_data = [];
-    $res = mysqli_query($conn, "SELECT lead_stage, COUNT(*) as c FROM leads GROUP BY lead_stage");
-    if($res) { while($r = mysqli_fetch_assoc($res)) { $pipe_labels[] = $r['lead_stage']; $pipe_data[] = $r['c']; } }
+        // B. Charts Data
+        // Pipeline
+        $pipe_labels = []; $pipe_data = [];
+        $res = mysqli_query($conn, "SELECT lead_stage, COUNT(*) as c FROM leads GROUP BY lead_stage");
+        if($res) { while($r = mysqli_fetch_assoc($res)) { $pipe_labels[] = $r['lead_stage']; $pipe_data[] = $r['c']; } }
 
-    // Source
-    $src_labels = []; $src_data = [];
-    $res = mysqli_query($conn, "SELECT lead_source, COUNT(*) as c FROM leads GROUP BY lead_source");
-    if($res) { while($r = mysqli_fetch_assoc($res)) { $src_labels[] = $r['lead_source']; $src_data[] = $r['c']; } }
+        // Source
+        $src_labels = []; $src_data = [];
+        $res = mysqli_query($conn, "SELECT lead_source, COUNT(*) as c FROM leads GROUP BY lead_source");
+        if($res) { while($r = mysqli_fetch_assoc($res)) { $src_labels[] = $r['lead_source']; $src_data[] = $r['c']; } }
 
-    // C. Recent Leads List
-    $recent_leads_db = [];
-    $res = mysqli_query($conn, "SELECT * FROM leads ORDER BY created_at DESC LIMIT 5");
-    if($res) { while($r = mysqli_fetch_assoc($res)) { $recent_leads_db[] = $r; } }
+        // C. Recent Leads List
+        $recent_leads_db = [];
+        $res = mysqli_query($conn, "SELECT * FROM leads ORDER BY created_at DESC LIMIT 5");
+        if($res) { while($r = mysqli_fetch_assoc($res)) { $recent_leads_db[] = $r; } }
+    } else {
+        // Fallback if table doesn't exist yet
+        $total_leads = 0; $new_leads = 0; $lost_leads = 0; $customers = 0;
+        $pipe_labels = []; $pipe_data = []; $src_labels = []; $src_data = []; $recent_leads_db = [];
+    }
 
 } catch (Exception $e) {
     echo "Data Error: " . $e->getMessage();
@@ -131,6 +146,10 @@ try {
                     </nav>
                 </div>
                 <div class="d-flex gap-2">
+                    <a href="../login/login.php?logout=1" class="btn btn-danger btn-sm text-white d-flex align-items-center gap-1">
+                        <i class="ti ti-power"></i> Logout
+                    </a>
+                    
                     <button class="btn btn-white border bg-white btn-sm">Export <i class="ti ti-download"></i></button>
                     <button class="btn btn-white border bg-white btn-sm"><i class="ti ti-calendar"></i> This Week</button>
                 </div>

@@ -1,14 +1,23 @@
 <?php
-// --- 1. GLOBAL USER DATA ---
+// --- 1. SESSION & SECURITY CHECK ---
+session_start();
+
+// If user is not logged in, redirect to login page
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+// --- 2. GLOBAL USER DATA ---
 $user = [
-    'name' => 'TL Manager',
+    'name' => $_SESSION['username'] ?? 'TL Manager', // Use session name if available
     'role' => 'Team Lead', 
     'avatar_initial' => 'T'
 ];
 
-// --- 2. DASHBOARD SPECIFIC DATA ---
+// --- 3. DASHBOARD SPECIFIC DATA ---
 $tlProfile = [
-    'name' => 'TL Manager',
+    'name' => $_SESSION['username'] ?? 'TL Manager',
     'role' => 'Team Lead - Engineering',
     'email' => 'tl.manager@company.com'
 ];
@@ -105,6 +114,23 @@ $totalAttendanceNum = 120;
         .badge-green { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
         .badge-red { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
 
+        /* Logout Button Style */
+        .logout-btn {
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f62d51;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: 0.3s;
+            border: none;
+        }
+        .logout-btn:hover { background: #d61c3c; }
+
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; }
         .modal-overlay.open { display: flex; }
         .modal-box { background: white; padding: 30px; border-radius: 12px; width: 450px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); position: relative; }
@@ -127,8 +153,13 @@ $totalAttendanceNum = 120;
                         <h1 class="header-title">Team Lead Dashboard</h1>
                         <p style="font-size: 14px; color: #666; margin: 0;">Welcome back, <span style="color:#FF9B44; font-weight:bold;"><?= htmlspecialchars($tlProfile['name']) ?></span></p>
                     </div>
-                    <div style="width: 50px; height: 50px; background: #fff7ed; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FF9B44;">
-                        <i data-lucide="users"></i>
+                    <div style="display:flex; align-items:center; gap: 15px;">
+                        <a href="../login/login.php?logout=1" class="logout-btn">
+                            <i data-lucide="log-out" width="18"></i> Logout
+                        </a>
+                        <div style="width: 50px; height: 50px; background: #fff7ed; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FF9B44;">
+                            <i data-lucide="users"></i>
+                        </div>
                     </div>
                 </div>
 
