@@ -121,8 +121,11 @@ if (isset($_POST['auth_action'])) {
                         header("Location: ../team_lead/tl_dashboard.php");
                         exit();
                     } elseif ($row['role'] === 'Digital Marketing') {
-                        // NEW: Redirects to digital_marketing folder
                         header("Location: ../digital_marketing/dm_dashboard.php");
+                        exit();
+                    } elseif ($row['role'] === 'Sales') {
+                        // NEW: Redirects to Sales Dashboard
+                        header("Location: ../sales/sales_dashboard.php");
                         exit();
                     }
                 }
@@ -204,7 +207,8 @@ if (isset($_POST['auth_action'])) {
                 <option value="Employee">Employee</option>
                 <option value="HR Management">HR Management</option>
                 <option value="Accounts">Accounts</option>
-                <option value="Digital Marketing">Digital Marketing</option> </select>
+                <option value="Digital Marketing">Digital Marketing</option>
+                <option value="Sales">Sales</option> </select>
         </div>
 
         <button type="submit" name="auth_action" id="submitBtn">Login</button>
