@@ -1,68 +1,133 @@
 <?php
-/**
- * Path Correction: 
- * If db_connect.php is in the same 'login' folder as this file, 'db_connect.php' works.
- * If it is in the root 'workack' folder, use '../db_connect.php'.
- */
-$db_file = 'db_connect.php';
+// login.php (Inside the 'login' folder)
 
-if (file_exists($db_file)) {
-    require_once $db_file;
-} else {
-    die("Error: db_connect.php not found at " . __DIR__ . DIRECTORY_SEPARATOR . $db_file);
+// 1. ERROR REPORTING
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// 2. SESSION
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-$message = "";
-$error = "";
+// 3. DATABASE CONNECTION (Robust Path Check)
+// We check multiple locations to find db_connect.php, handling subfolders correctly
+$paths = ['../include/db_connect.php', '../../include/db_connect.php', 'include/db_connect.php', 'db_connect.php'];
+$conn_found = false;
+foreach ($paths as $path) {
+    if (file_exists($path)) {
+        require_once $path;
+        $conn_found = true;
+        break;
+    }
+}
+if (!$conn_found) {
+    die("Error: Could not find db_connect.php. Please check your folder structure.");
+}
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $action = $_POST['action'] ?? '';
+// --- LOGOUT LOGIC ---
+if (isset($_GET['logout'])) {
+    session_unset();
+    session_destroy();
+    header("Location: login.php");
+    exit();
+}
 
-    if ($action === 'login') {
-        $username = mysqli_real_escape_string($conn, $_POST['username']);
-        $password = $_POST['password'];
-        $role     = mysqli_real_escape_string($conn, $_POST['role']);
+$error = null;
+$success = null;
 
-        $stmt = mysqli_prepare($conn, "SELECT password FROM users WHERE username = ? AND role = ?");
-        mysqli_stmt_bind_param($stmt, "ss", $username, $role);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
+// 4. HANDLE FORM
+if (isset($_POST['auth_action'])) {
+    
+    if (!isset($conn)) { die("Error: Database connection failed."); }
 
-        if ($user = mysqli_fetch_assoc($result)) {
-            if (password_verify($password, $user['password'])) {
-                $_SESSION['username'] = $username;
-                $_SESSION['role'] = $role;
-                // Redirect to dashboard (assuming it's in the root folder /workack/)
-                header("Location: ../dashboard.php"); 
-                exit;
-            } else {
-                $error = "Invalid password!";
-            }
-        } else {
-            $error = "No user found with those credentials or role.";
-        }
-        mysqli_stmt_close($stmt);
+    $username = trim($_POST['username']);
+    $password = $_POST['password'];
+    $selected_role = $_POST['role']; 
+    $mode     = $_POST['auth_mode']; 
 
-    } elseif ($action === 'register') {
-        $username = mysqli_real_escape_string($conn, $_POST['username']);
-        $role     = mysqli_real_escape_string($conn, $_POST['role']);
-        $password = $_POST['password'];
-        $confirm  = $_POST['confirm_password'];
+    // --- REGISTER ---
+    if ($mode === 'register') {
+        $confirm_password = $_POST['confirm_password'];
 
-        if ($password !== $confirm) {
+        if ($password !== $confirm_password) {
             $error = "Passwords do not match!";
         } else {
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = mysqli_prepare($conn, "INSERT INTO users (username, password, role) VALUES (?, ?, ?)");
-            mysqli_stmt_bind_param($stmt, "sss", $username, $hashed_password, $role);
-            
-            if (mysqli_stmt_execute($stmt)) {
-                $message = "Registration successful! You can now login.";
+            $stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt->bind_param("s", $username);
+            $stmt->execute();
+            $stmt->store_result();
+
+            if ($stmt->num_rows > 0) {
+                $error = "Username already exists.";
             } else {
-                $error = "Username already exists or database error.";
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $stmt = $conn->prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)");
+                $stmt->bind_param("sss", $username, $hashed_password, $selected_role);
+                
+                if ($stmt->execute()) {
+                    $success = "Registration successful as <strong>$selected_role</strong>! Please login.";
+                } else {
+                    $error = "Database Error: " . $conn->error;
+                }
             }
-            mysqli_stmt_close($stmt);
+            $stmt->close();
         }
+    } 
+    // --- LOGIN ---
+    elseif ($mode === 'login') {
+        $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ?");
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($row = $result->fetch_assoc()) {
+            if (password_verify($password, $row['password'])) {
+                
+                // === SPECIAL AUTO-FIX ===
+                // If database role is EMPTY, update it to the selected role automatically
+                if (empty(trim($row['role']))) {
+                    $fix_stmt = $conn->prepare("UPDATE users SET role = ? WHERE id = ?");
+                    $fix_stmt->bind_param("si", $selected_role, $row['id']);
+                    $fix_stmt->execute();
+                    $fix_stmt->close();
+                    
+                    // Update local variable so login succeeds
+                    $row['role'] = $selected_role; 
+                }
+                // ========================
+
+                // Check Role
+                if ($row['role'] !== $selected_role) {
+                    $error = "Error: This account is registered as <strong>" . $row['role'] . "</strong>, but you selected <strong>" . $selected_role . "</strong>.";
+                } else {
+                    // Success!
+                    $_SESSION['user_id'] = $row['id'];
+                    $_SESSION['username'] = $row['username'];
+                    $_SESSION['role'] = $row['role']; 
+
+                    // --- REDIRECTION LOGIC (UPDATED) ---
+                    if ($row['role'] === 'Admin') {
+                        header("Location: ../admin/admindashboard.php");
+                        exit();
+                    } elseif ($row['role'] === 'HR Management') {
+                        header("Location: ../hr/hr_dashboard.php");
+                        exit();
+                    } elseif ($row['role'] === 'Employee') {
+                         // FIX APPLIED HERE: Redirect to the correct file path
+                         header("Location: ../employee/emp_dashboard.php");
+                         exit();
+                    }
+                }
+
+            } else {
+                $error = "Invalid password.";
+            }
+        } else {
+            $error = "User not found.";
+        }
+        $stmt->close();
     }
 }
 ?>
@@ -72,81 +137,101 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HRMS Portal | Workack</title>
+    <title>SmartHR Login</title>
     <style>
-        :root { --primary: #1a73e8; --primary-hover: #1557b0; --bg: #f0f2f5; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { text-align: center; color: var(--primary); margin-top: 0; }
-        .alert { padding: 12px; border-radius: 6px; margin-bottom: 15px; text-align: center; font-size: 14px; }
-        .error { color: #d93025; background: #fce8e6; border: 1px solid #f5c2c7; }
-        .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
-        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
-        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
-        button:hover { background: var(--primary-hover); }
-        .toggle-btn { text-align: center; margin-top: 20px; font-size: 14px; color: #555; }
-        .toggle-btn span { color: var(--primary); cursor: pointer; font-weight: bold; text-decoration: underline; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; flex-direction: column; }
+        .login-card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        .login-card h2 { color: #f29040; margin-bottom: 20px; font-weight: 600; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; margin-bottom: 5px; color: #333; font-size: 0.9em; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; background-color: #eef2f5; }
+        button { width: 100%; padding: 12px; background-color: #f29040; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; transition: background 0.3s; margin-top: 10px; }
+        button:hover { background-color: #e07e30; }
+        .toggle-area { margin-top: 20px; font-size: 0.85em; color: #666; }
+        .toggle-area a { color: #f29040; text-decoration: none; font-weight: bold; cursor: pointer; }
+        .error { color: #721c24; background: #f8d7da; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; border: 1px solid #f5c6cb; }
+        .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; border: 1px solid #c3e6cb; }
         .hidden { display: none; }
+        
+        .status-bar { background: #e2e3e5; color: #383d41; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 13px; text-align: center; border: 1px solid #d6d8db;}
+        .logout-link { color: #dc3545; font-weight: bold; text-decoration: underline; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="login-form">
-        <h2>HRMS Login</h2>
-        <?php if($error) echo "<div class='alert error'>$error</div>"; ?>
-        <?php if($message) echo "<div class='alert success'>$message</div>"; ?>
-
-        <form method="POST">
-            <input type="hidden" name="action" value="login">
-            <input type="text" name="username" placeholder="Username" required>
-            <select name="role" required>
-                <option value="" disabled selected>Select Your Role</option>
-                <option value="Admin">Admin</option>
-                <option value="Manager">Manager</option>
-                <option value="Hr">Hr</option>
-                <option value="Teamlead">Teamlead</option>
-                <option value="Employee">Employee</option>
-                <option value="DigitalMarketing">Digital Marketing</option>
-                <option value="Accounts">Accounts</option>
-            </select>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Sign In</button>
-        </form>
-        <div class="toggle-btn">
-            Don't have an account? <span onclick="toggleForm()">Register Now</span>
-        </div>
+<?php if(isset($_SESSION['username'])): ?>
+    <div class="status-bar">
+        Logged in as: <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong> (<?php echo htmlspecialchars($_SESSION['role']); ?>)<br>
+        <a href="login.php?logout=1" class="logout-link">Force Logout</a>
     </div>
+<?php endif; ?>
 
-    <div id="register-form" class="hidden">
-        <h2>HRMS Register</h2>
-        <form method="POST">
-            <input type="hidden" name="action" value="register">
-            <input type="text" name="username" placeholder="Choose Username" required>
-            <select name="role" required>
-                <option value="" disabled selected>Select Your Role</option>
-                <option value="Admin">Admin</option>
-                <option value="Manager">Manager</option>
-                <option value="Hr">Hr</option>
-                <option value="Teamlead">Teamlead</option>
-                <option value="Employee">Employee</option>
-                <option value="DigitalMarketing">Digital Marketing</option>
-                <option value="Accounts">Accounts</option>
-            </select>
-            <input type="password" name="password" placeholder="Create Password" required>
-            <input type="password" name="confirm_password" placeholder="Confirm Password" required>
-            <button type="submit">Create Account</button>
-        </form>
-        <div class="toggle-btn">
-            Already have an account? <span onclick="toggleForm()">Login here</span>
+<div class="login-card">
+    <h2 id="formTitle">SmartHR Login</h2>
+
+    <?php if($error): ?> <div class="error"><?php echo $error; ?></div> <?php endif; ?>
+    <?php if($success): ?> <div class="success"><?php echo $success; ?></div> <?php endif; ?>
+
+    <form method="POST" action="">
+        <input type="hidden" name="auth_mode" id="auth_mode" value="login">
+        
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" name="username" required>
         </div>
+
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" name="password" required>
+        </div>
+
+        <div class="form-group hidden" id="confirmPassGroup">
+            <label>Confirm Password</label>
+            <input type="password" name="confirm_password">
+        </div>
+
+        <div class="form-group">
+            <label>Role</label>
+            <select name="role">
+                <option value="Admin">Admin</option>
+                <option value="Employee">Employee</option>
+                <option value="HR Management">HR Management</option>
+            </select>
+        </div>
+
+        <button type="submit" name="auth_action" id="submitBtn">Login</button>
+    </form>
+
+    <div class="toggle-area">
+        <span id="toggleText">Don't have an account? </span>
+        <a onclick="toggleMode()" id="toggleLink">Register Now</a>
     </div>
 </div>
 
 <script>
-    function toggleForm() {
-        document.getElementById('login-form').classList.toggle('hidden');
-        document.getElementById('register-form').classList.toggle('hidden');
+    function toggleMode() {
+        const mode = document.getElementById('auth_mode');
+        const confirm = document.getElementById('confirmPassGroup');
+        const btn = document.getElementById('submitBtn');
+        const title = document.getElementById('formTitle');
+        const text = document.getElementById('toggleText');
+        const link = document.getElementById('toggleLink');
+
+        if (mode.value === 'login') {
+            mode.value = 'register';
+            confirm.classList.remove('hidden');
+            btn.textContent = 'Register';
+            title.textContent = 'SmartHR Register';
+            text.textContent = 'Already have an account? ';
+            link.textContent = 'Login';
+        } else {
+            mode.value = 'login';
+            confirm.classList.add('hidden');
+            btn.textContent = 'Login';
+            title.textContent = 'SmartHR Login';
+            text.textContent = "Don't have an account? ";
+            link.textContent = 'Register Now';
+        }
     }
 </script>
 
