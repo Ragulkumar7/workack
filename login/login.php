@@ -1,18 +1,17 @@
 <?php
-// login.php (Inside the 'login' folder)
+// login.php
 
 // 1. ERROR REPORTING
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// 2. SESSION
+// 2. SESSION START
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// 3. DATABASE CONNECTION (Robust Path Check)
-// We check multiple locations to find db_connect.php, handling subfolders correctly
+// 3. DATABASE CONNECTION
 $paths = ['../include/db_connect.php', '../../include/db_connect.php', 'include/db_connect.php', 'db_connect.php'];
 $conn_found = false;
 foreach ($paths as $path) {
@@ -37,7 +36,7 @@ if (isset($_GET['logout'])) {
 $error = null;
 $success = null;
 
-// 4. HANDLE FORM
+// 4. HANDLE FORM SUBMISSION
 if (isset($_POST['auth_action'])) {
     
     if (!isset($conn)) { die("Error: Database connection failed."); }
@@ -45,15 +44,16 @@ if (isset($_POST['auth_action'])) {
     $username = trim($_POST['username']);
     $password = $_POST['password'];
     $selected_role = $_POST['role']; 
-    $mode     = $_POST['auth_mode']; 
+    $mode = $_POST['auth_mode']; 
 
-    // --- REGISTER ---
+    // --- REGISTER MODE ---
     if ($mode === 'register') {
         $confirm_password = $_POST['confirm_password'];
 
         if ($password !== $confirm_password) {
             $error = "Passwords do not match!";
         } else {
+            // Check if username exists
             $stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
             $stmt->bind_param("s", $username);
             $stmt->execute();
@@ -62,6 +62,7 @@ if (isset($_POST['auth_action'])) {
             if ($stmt->num_rows > 0) {
                 $error = "Username already exists.";
             } else {
+                // Insert new user
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $stmt = $conn->prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)");
                 $stmt->bind_param("sss", $username, $hashed_password, $selected_role);
@@ -75,7 +76,7 @@ if (isset($_POST['auth_action'])) {
             $stmt->close();
         }
     } 
-    // --- LOGIN ---
+    // --- LOGIN MODE ---
     elseif ($mode === 'login') {
         $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ?");
         $stmt->bind_param("s", $username);
@@ -85,29 +86,25 @@ if (isset($_POST['auth_action'])) {
         if ($row = $result->fetch_assoc()) {
             if (password_verify($password, $row['password'])) {
                 
-                // === SPECIAL AUTO-FIX ===
-                // If database role is EMPTY, update it to the selected role automatically
+                // === ROLE AUTO-FIX ===
                 if (empty(trim($row['role']))) {
                     $fix_stmt = $conn->prepare("UPDATE users SET role = ? WHERE id = ?");
                     $fix_stmt->bind_param("si", $selected_role, $row['id']);
                     $fix_stmt->execute();
                     $fix_stmt->close();
-                    
-                    // Update local variable so login succeeds
                     $row['role'] = $selected_role; 
                 }
-                // ========================
 
-                // Check Role
+                // Check Role Match
                 if ($row['role'] !== $selected_role) {
                     $error = "Error: This account is registered as <strong>" . $row['role'] . "</strong>, but you selected <strong>" . $selected_role . "</strong>.";
                 } else {
-                    // Success!
+                    // Login Success
                     $_SESSION['user_id'] = $row['id'];
                     $_SESSION['username'] = $row['username'];
                     $_SESSION['role'] = $row['role']; 
 
-                    // --- REDIRECTION LOGIC (UPDATED) ---
+                    // --- REDIRECTION LOGIC ---
                     if ($row['role'] === 'Admin') {
                         header("Location: ../admin/admindashboard.php");
                         exit();
@@ -115,9 +112,18 @@ if (isset($_POST['auth_action'])) {
                         header("Location: ../hr/hr_dashboard.php");
                         exit();
                     } elseif ($row['role'] === 'Employee') {
-                         // FIX APPLIED HERE: Redirect to the correct file path
                          header("Location: ../employee/emp_dashboard.php");
                          exit();
+                    } elseif ($row['role'] === 'Accounts') {
+                        header("Location: ../accounts/accounts_dashboard.php");
+                        exit();
+                    } elseif ($row['role'] === 'Team Lead') {
+                        header("Location: ../team_lead/tl_dashboard.php");
+                        exit();
+                    } elseif ($row['role'] === 'Digital Marketing') {
+                        // NEW: Redirects to digital_marketing folder
+                        header("Location: ../digital_marketing/dm_dashboard.php");
+                        exit();
                     }
                 }
 
@@ -194,9 +200,11 @@ if (isset($_POST['auth_action'])) {
             <label>Role</label>
             <select name="role">
                 <option value="Admin">Admin</option>
+                <option value="Team Lead">Team Lead</option>
                 <option value="Employee">Employee</option>
                 <option value="HR Management">HR Management</option>
-            </select>
+                <option value="Accounts">Accounts</option>
+                <option value="Digital Marketing">Digital Marketing</option> </select>
         </div>
 
         <button type="submit" name="auth_action" id="submitBtn">Login</button>
