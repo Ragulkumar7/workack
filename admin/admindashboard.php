@@ -1,82 +1,40 @@
 <?php
-// 1. DATABASE & SESSION SETUP
+session_start();
 require_once '../login/db_connect.php';
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+// --- ACCESS CONTROL ---
+// 1. Check if user is logged in AND is an Admin
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
+    // If not, redirect to the main Login page
+    header("Location: ../login/login.php");
+    exit();
 }
 
 // --- LOGOUT LOGIC ---
 if (isset($_GET['logout'])) {
     session_unset();
     session_destroy();
-    // FIX 1: Redirect explicitly to the dashboard file (which will show the login form)
-    header("Location: admindashboard.php");
-    exit;
+    header("Location: ../login/login.php");
+    exit();
 }
 
-// 2. HANDLE LOGIN/REGISTRATION LOGIC
-if (isset($_POST['auth_action'])) {
-    $username = mysqli_real_escape_string($conn, $_POST['username']);
-    $password = $_POST['password'];
-    $role     = mysqli_real_escape_string($conn, $_POST['role']); 
-    $mode     = $_POST['auth_mode']; 
-
-    $error = null;
-
-    // --- REGISTER LOGIC ---
-    if ($mode === 'register') {
-        $confirm_password = $_POST['confirm_password'];
-        if ($password !== $confirm_password) {
-            $error = "Passwords do not match!";
-        } else {
-            // Success: Set Session
-            $_SESSION['username'] = $username;
-            $_SESSION['role'] = $role;
-        }
-    } 
-    // --- LOGIN LOGIC ---
-    elseif ($mode === 'login') {
-        // TODO: Add database password verification here later
-        $_SESSION['username'] = $username;
-        $_SESSION['role'] = $role; 
-    }
-
-    // --- REDIRECT IF SUCCESS ---
-    if (!$error && isset($_SESSION['username'])) {
-        if ($_SESSION['role'] === 'Admin') {
-            // FIX 2: Redirect explicitly to load the dashboard view
-            header("Location: admindashboard.php");
-            exit;
-        } else {
-            $error = "Access Denied: Only Admins can view this dashboard.";
-            session_unset();
-            session_destroy();
-        }
-    }
+// --- DASHBOARD DATA ---
+// Only runs if we are logged in (which is guaranteed by the check above)
+if (isset($conn)) {
+    $emp_query = mysqli_query($conn, "SELECT id FROM users");
+    $total_employees = $emp_query ? mysqli_num_rows($emp_query) : 0;
+} else {
+    $total_employees = 0;
 }
 
-// 3. SECURITY CHECK: Should we show the dashboard?
-$show_dashboard = (isset($_SESSION['username']) && $_SESSION['role'] === 'Admin');
-
-// 4. DASHBOARD DATA (Only run query if logged in)
-if ($show_dashboard) {
-    if (isset($conn)) {
-        $emp_query = mysqli_query($conn, "SELECT id FROM users");
-        $total_employees = $emp_query ? mysqli_num_rows($emp_query) : 0;
-    } else {
-        $total_employees = 0;
-    }
-    
-    // Dummy Data
-    $total_projects  = 90;
-    $total_clients   = 69;
-    $total_tasks     = 96;
-    $earnings        = "$21,445";
-    $profit_weekly   = "$5,544";
-    $job_applicants  = 98;
-    $new_hires       = "45/48";
-}
+// Dummy Data for visual placeholders
+$total_projects  = 90;
+$total_clients   = 69;
+$total_tasks     = 96;
+$earnings        = "$21,445";
+$profit_weekly   = "$5,544";
+$job_applicants  = 98;
+$new_hires       = "45/48";
 ?>
 
 <!DOCTYPE html>
@@ -101,22 +59,6 @@ if ($show_dashboard) {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         body { background: var(--body-bg); display: flex; color: var(--text-dark); }
-
-        /* AUTH FORM STYLES */
-        .auth-container { display: flex; justify-content: center; align-items: center; height: 100vh; width: 100%; overflow-y: auto; background: var(--body-bg); }
-        .auth-card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
-        .auth-card h2 { margin-bottom: 10px; color: var(--primary-orange); text-align: center; }
-        .auth-group { margin-bottom: 15px; }
-        .auth-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px; }
-        .auth-group input, .auth-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; outline: none; }
-        .btn-auth { width: 100%; background: var(--primary-orange); color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        .error-msg { background: #fee2e2; color: #dc2626; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; font-size: 13px; }
-        
-        .toggle-text { text-align: center; margin-top: 15px; font-size: 14px; }
-        .toggle-text span { color: var(--primary-orange); cursor: pointer; font-weight: bold; text-decoration: underline; }
-        
-        /* Utility to hide elements */
-        .d-none { display: none; }
 
         /* MAIN CONTENT SCROLLING */
         .main-content { 
@@ -161,78 +103,6 @@ if ($show_dashboard) {
 </head>
 <body>
 
-<?php if (!$show_dashboard): ?>
-    <div class="auth-container">
-        <div class="auth-card">
-            
-            <?php if(isset($error)): ?>
-                <div class="error-msg"><?php echo $error; ?></div>
-            <?php endif; ?>
-
-            <div id="login-box">
-                <h2>SmartHR Login</h2>
-                <form method="POST">
-                    <input type="hidden" name="auth_mode" value="login">
-                    <div class="auth-group">
-                        <label>Username</label>
-                        <input type="text" name="username" required placeholder="Enter username">
-                    </div>
-                    
-                    <div class="auth-group">
-                        <label>Role</label>
-                        <select name="role" required>
-                            <option value="Admin">Admin</option>
-                            <option value="Employee">Employee</option>
-                        </select>
-                    </div>
-
-                    <div class="auth-group">
-                        <label>Password</label>
-                        <input type="password" name="password" required placeholder="••••••••">
-                    </div>
-                    <button type="submit" name="auth_action" class="btn-auth">Login</button>
-                    
-                    <div class="toggle-text">
-                        Don't have an account? <span onclick="toggleAuth('register')">Register Now</span>
-                    </div>
-                </form>
-            </div>
-
-            <div id="register-box" class="d-none">
-                <h2>Create Account</h2>
-                <form method="POST">
-                    <input type="hidden" name="auth_mode" value="register">
-                    <div class="auth-group">
-                        <label>Username</label>
-                        <input type="text" name="username" required placeholder="Choose a username">
-                    </div>
-                    <div class="auth-group">
-                        <label>Role</label>
-                        <select name="role" required>
-                            <option value="Admin">Admin</option>
-                            <option value="Employee">Employee</option>
-                        </select>
-                    </div>
-                    <div class="auth-group">
-                        <label>Password</label>
-                        <input type="password" name="password" required placeholder="••••••••">
-                    </div>
-                    <div class="auth-group">
-                        <label>Confirm Password</label>
-                        <input type="password" name="confirm_password" required placeholder="••••••••">
-                    </div>
-                    <button type="submit" name="auth_action" class="btn-auth">Register</button>
-                    
-                    <div class="toggle-text">
-                        Already have an account? <span onclick="toggleAuth('login')">Login</span>
-                    </div>
-                </form>
-            </div>
-
-        </div>
-    </div>
-
-<?php else: ?>
     <?php include '../include/sidebar.php'; ?>
 
     <main class="main-content">
@@ -241,15 +111,15 @@ if ($show_dashboard) {
             <div class="breadcrumb">
                 <div>
                     <h2>Admin Dashboard</h2>
-                    <p style="color:var(--text-muted); font-size: 13px;">Welcome, <?php echo $_SESSION['username']; ?> | <a href="?logout=true">Logout</a></p>
+                    <p style="color:var(--text-muted); font-size: 13px;">Welcome, <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Admin'; ?> | <a href="?logout=true">Logout</a></p>
                 </div>
                 <button style="background:var(--primary-orange); color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">+ Add Schedule</button>
             </div>
 
             <div class="welcome-card">
-                <img src="https://ui-avatars.com/api/?name=<?php echo $_SESSION['username']; ?>&background=FF9B44&color=fff" alt="Admin">
+                <img src="https://ui-avatars.com/api/?name=<?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'Admin'; ?>&background=FF9B44&color=fff" alt="Admin">
                 <div class="welcome-text">
-                    <h3>Welcome Back, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h3>
+                    <h3>Welcome Back, <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Admin'; ?>!</h3>
                     <p>You have <span style="color:#f62d51; font-weight:bold;">21</span> Pending Approvals & 14 Leave Requests.</p>
                 </div>
             </div>
@@ -328,23 +198,8 @@ if ($show_dashboard) {
             </div>
         </div>
     </div>
-<?php endif; ?>
 
 <script>
-    // --- AUTH TOGGLE LOGIC ---
-    function toggleAuth(mode) {
-        const loginBox = document.getElementById('login-box');
-        const regBox = document.getElementById('register-box');
-        
-        if(mode === 'register') {
-            loginBox.classList.add('d-none');
-            regBox.classList.remove('d-none');
-        } else {
-            regBox.classList.add('d-none');
-            loginBox.classList.remove('d-none');
-        }
-    }
-
     // --- SIDEBAR LOGIC ---
     function checkSidebar() {
         const sidebar = document.querySelector('.sidebar');
