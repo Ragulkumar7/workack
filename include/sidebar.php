@@ -10,33 +10,44 @@ $current_path = $_SERVER['REQUEST_URI'];
 ?>
 
 <?php
-// 3. DEFINE MENU DATA
+// 3. DEFINE MENU DATA - All Original Sections + Updated TL Dropdown
 $sections = [
     [
         'label' => 'Main',
         'items' => [
             ['name' => 'Dashboard', 'path' => '/', 'icon' => 'layout-dashboard', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
-            ['name' => 'Team Lead', 'path' => '/teamlead', 'icon' => 'users', 'allowed' => ['TL', 'HR', 'Manager']],
             
-            // --- HR MANAGEMENT (Setup + Recruitment) ---
+            // --- TEAM LEAD (With Sub-Items) ---
+            [
+                'name' => 'Team Lead', 
+                'icon' => 'users', 
+                'allowed' => ['TL', 'HR', 'Manager'],
+                'subItems' => [
+                    ['name' => 'TL Dashboard', 'path' => '/workack/team_lead/tl_dashboard.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'TL Portal', 'path' => '/workack/team_lead/teamleadportal.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Attendance Portal', 'path' => '/workack/team_lead/TeamLeadAttendance.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Task Management', 'path' => '/workack/team_lead/taskmanagement.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Contact', 'path' => '/workack/team_lead/contact.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Settings', 'path' => '/workack/settings.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Report', 'path' => '/workack/team_lead/report.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                ]
+            ],
+
+            // --- HR MANAGEMENT (Full Sub-menu Restored) ---
             [
                 'name' => 'HR Management', 
                 'icon' => 'fingerprint', 
                 'allowed' => ['Manager', 'HR'],
                 'subItems' => [
-                    // Core Setup
                     ['name' => 'Employees', 'path' => '/workack/hr/employees.php', 'allowed' => ['Manager', 'HR']],
                     ['name' => 'Departments', 'path' => '/workack/hr/departments.php', 'allowed' => ['Manager', 'HR']],
                     ['name' => 'Designations', 'path' => '/workack/hr/designations.php', 'allowed' => ['Manager', 'HR']],
                     ['name' => 'Holidays', 'path' => '/workack/hr/holidays.php', 'allowed' => ['Manager', 'HR']],
                     ['name' => 'Policies', 'path' => '/workack/hr/policy.php', 'allowed' => ['Manager', 'HR']],
-                    
-                    // Recruitment (Moved Inside HR)
                     ['name' => 'Jobs', 'path' => '/workack/hr/jobs.php', 'allowed' => ['Manager', 'HR']],
                     ['name' => 'Candidates', 'path' => '/workack/hr/canditates_grid.php', 'allowed' => ['Manager', 'HR']],
                 ]
             ],
-            // -------------------------------------------
 
             ['name' => 'Directory', 'path' => '/employees', 'icon' => 'users', 'allowed' => ['Manager', 'HR']],
             ['name' => 'Manager', 'path' => '/manager', 'icon' => 'shield-check', 'allowed' => ['Manager', 'HR']],
@@ -45,7 +56,7 @@ $sections = [
     [
         'label' => 'Operations',
         'items' => [
-            // --- PERFORMANCE MANAGEMENT ---
+            // --- PERFORMANCE MANAGEMENT (Restored) ---
             [
                 'name' => 'Performance', 
                 'icon' => 'bar-chart-2', 
@@ -60,7 +71,6 @@ $sections = [
                     ['name' => 'Termination', 'path' => '/workack/performance/termination.php', 'allowed' => ['Manager', 'HR']],
                 ]
             ],
-            // ------------------------------
 
             ['name' => 'Attendance', 'path' => '/EmployeeAttendance', 'icon' => 'calendar-check', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
             ['name' => 'Tasks', 'path' => '/tasks', 'icon' => 'clipboard-list', 'allowed' => ['Manager', 'TL', 'Employee', 'HR', 'DM']],
@@ -80,6 +90,8 @@ $sections = [
                     ['name' => 'Reports', 'path' => '/workack/accounts/accounts_reports.php', 'allowed' => ['Manager', 'HR', 'Accounts']],
                 ]
             ],
+
+            ['name' => 'Recruitment', 'path' => '/recruitment', 'icon' => 'briefcase', 'allowed' => ['Manager', 'HR']],
             
             // --- DIGITAL MARKETING (Preserved) ---
             [
@@ -252,7 +264,7 @@ foreach ($sections as $section) {
             <div id="logoError" style="display:none; font-size: 8px; color: red; text-align: center; margin-top: 5px;">Image Missing<br>Check: assets/logo.png</div>
         </a>
         
-        <a href="/" class="nav-item <?= $current_path === '/' ? 'active' : '' ?>">
+        <a href="/" class="nav-item <?= ($current_path === '/' || $current_path === '/workack/') ? 'active' : '' ?>">
             <div class="icon-box"><i data-lucide="home"></i></div>
             <span class="nav-label">Home</span>
         </a>
@@ -268,7 +280,6 @@ foreach ($sections as $section) {
                     $hasSub = !empty($item['subItems']);
                     $isMainActive = ($itemPath !== '' && strpos($current_path, $itemPath) !== false);
                     
-                    // Logic to keep parent active if a child is active
                     $childActive = false;
                     if($hasSub) {
                         foreach($item['subItems'] as $sub) {
@@ -320,12 +331,6 @@ foreach ($sections as $section) {
                 const container = item.nextElementSibling;
                 if(container && container.classList.contains('submenu-container')) {
                     e.preventDefault();
-                    
-                    // Close other submenus (Optional - currently commented out)
-                    // document.querySelectorAll('.submenu-container').forEach(c => {
-                    //    if(c !== container) c.classList.remove('show');
-                    // });
-
                     container.classList.toggle('show');
                 }
             })
