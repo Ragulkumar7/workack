@@ -30,13 +30,23 @@ $sections = [
             ['name' => 'Teams', 'path' => '/teams', 'icon' => 'message-square', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts']],
             ['name' => 'Payroll', 'path' => '/payroll', 'icon' => 'banknote', 'allowed' => ['Manager', 'HR', 'Accounts']],
             
-            // --- NEW ACCOUNTS OPTION ---
-            ['name' => 'Accounts', 'path' => '/accounts', 'icon' => 'calculator', 'allowed' => ['Manager', 'HR', 'Accounts']],
-            // ---------------------------
+            // --- UPDATED ACCOUNTS TEAM SECTION WITH SUB-ITEMS ---
+            [
+                'name' => 'Accounts', 
+                'icon' => 'calculator', 
+                'allowed' => ['Manager', 'HR', 'Accounts'],
+                'subItems' => [
+                    ['name' => 'Dashboard', 'path' => '/workack/accounts/accounts_dashboards.php', 'allowed' => ['Manager', 'HR', 'Accounts']],
+                    ['name' => 'Invoices', 'path' => '/workack/accounts/invoice_management.php', 'allowed' => ['Manager', 'HR', 'Accounts']],
+                    ['name' => 'Purchase Order', 'path' => '/workack/accounts/purchase_order.php', 'allowed' => ['Manager', 'HR', 'Accounts']],
+                    ['name' => 'Ledger', 'path' => '/workack/accounts/ledger.php', 'allowed' => ['Manager', 'HR', 'Accounts']],
+                    ['name' => 'Reports', 'path' => '/workack/accounts/accounts_reports.php', 'allowed' => ['Manager', 'HR', 'Accounts']],
+                ]
+            ],
+            // ---------------------------------------------------
 
             ['name' => 'Recruitment', 'path' => '/recruitment', 'icon' => 'briefcase', 'allowed' => ['Manager', 'HR']],
             
-            // --- DIGITAL MARKETING SECTION ---
             [
                 'name' => 'Digital Marketing', 
                 'icon' => 'target', 
@@ -88,9 +98,7 @@ foreach ($sections as $section) {
 
     <style>
         :root {
-            /* === SIDEBAR WIDTH === */
             --sidebar-width: 110px; 
-            
             --active-bg: #EAEAEA;
             --active-border: #D1D1D1;
             --text-color: #555555;
@@ -141,11 +149,7 @@ foreach ($sections as $section) {
             box-sizing: border-box;
         }
 
-        .brand-image {
-            width: 100px; 
-            height: auto;
-            object-fit: contain;
-        }
+        .brand-image { width: 100px; height: auto; object-fit: contain; }
 
         .user-profile {
             margin-top: auto;
@@ -157,199 +161,120 @@ foreach ($sections as $section) {
         }
 
         .user-avatar {
-            width: 36px;
-            height: 36px;
-            background-color: #333;
-            color: #fff;
+            width: 36px; height: 36px;
+            background-color: #333; color: #fff;
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 600; margin-bottom: 5px;
         }
 
         .user-name {
-            font-size: 10px;
-            font-weight: 600;
-            color: #333;
-            text-align: center;
-            max-width: 90px; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-size: 10px; font-weight: 600; color: #333;
+            text-align: center; max-width: 90px; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         
-        .user-role {
-            font-size: 9px;
-            color: #888;
-            margin-top: 2px;
-        }
+        .user-role { font-size: 9px; color: #888; margin-top: 2px; }
 
-        .nav-group {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .nav-divider {
-            width: 40px;
-            height: 1px;
-            background-color: #eee;
-            margin: 10px 0;
-        }
+        .nav-group { width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 10px; }
+        .nav-divider { width: 40px; height: 1px; background-color: #eee; margin: 10px 0; }
 
         .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            color: var(--text-color);
-            width: 100%;
-            padding: 10px 0;
-            transition: all 0.2s ease;
-            position: relative;
-            cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-decoration: none; color: var(--text-color); width: 100%;
+            padding: 10px 0; transition: all 0.2s ease; position: relative; cursor: pointer;
         }
 
         .icon-box {
-            width: 38px;
-            height: 38px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            background: transparent;
-            transition: all 0.2s ease;
-            margin-bottom: 6px;
+            width: 38px; height: 38px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 10px; background: transparent;
+            transition: all 0.2s ease; margin-bottom: 6px;
         }
 
-        .icon-box svg { 
-            width: 20px; 
-            height: 20px; 
-            stroke-width: 1.5px; 
-        }
+        .icon-box svg { width: 20px; height: 20px; stroke-width: 1.5px; }
 
-        .nav-label {
-            font-size: 11px;
-            font-weight: 500;
-            text-align: center;
-            line-height: 1.2;
-            color: #666;
-        }
+        .nav-label { font-size: 11px; font-weight: 500; text-align: center; line-height: 1.2; color: #666; }
 
-        .nav-item.active .icon-box {
-            background-color: var(--active-bg);
-            border: 1px solid var(--active-border);
-            color: #000;
-        }
-        
-        .nav-item.active .nav-label {
-            color: #000;
-            font-weight: 600;
-        }
-
+        .nav-item.active .icon-box { background-color: var(--active-bg); border: 1px solid var(--active-border); color: #000; }
+        .nav-item.active .nav-label { color: #000; font-weight: 600; }
         .nav-item:hover .icon-box { background-color: var(--hover-bg); }
 
-        .submenu-container {
-            display: none;
-            background: #f9f9f9;
-            width: 100%;
-            padding-bottom: 10px;
-        }
+        /* SUBMENU STYLES */
+        .submenu-container { display: none; background: #fdfdfd; width: 100%; padding: 5px 0 10px; border-top: 1px solid #f5f5f5; }
         .submenu-container.show { display: block; }
-        .sub-link { font-size: 10px; color: #888; text-decoration: none; padding: 5px 0; display: block; text-align: center;}
-        .sub-link:hover { color: orange; }
+        .sub-link { font-size: 10px; color: #888; text-decoration: none; padding: 6px 10px; display: block; text-align: center; font-weight: 500; }
+        .sub-link:hover { color: #000; background: #f8f8f8; }
+        .sub-link.active { color: #f59e0b; font-weight: 700; background: #fffbeb; }
 
     </style>
 </head>
 <body>
 
     <aside class="sidebar">
-        
         <a href="#" class="brand-logo">
-            <img src="/project2/workack/assets/logo.png" 
-                 alt="Workack" 
-                 class="brand-image"
-                 id="sidebarLogo">
-                 
-            <div id="logoError" style="display:none; font-size: 8px; color: red; text-align: center; margin-top: 5px;">
-                Image Missing<br>
-                Check: assets/logo.png
-            </div>
+            <img src="/project2/workack/assets/logo.png" alt="Workack" class="brand-image" id="sidebarLogo">
+            <div id="logoError" style="display:none; font-size: 8px; color: red; text-align: center; margin-top: 5px;">Image Missing<br>Check: assets/logo.png</div>
         </a>
         
         <a href="/" class="nav-item <?= $current_path === '/' ? 'active' : '' ?>">
-            <div class="icon-box">
-                <i data-lucide="home"></i>
-            </div>
+            <div class="icon-box"><i data-lucide="home"></i></div>
             <span class="nav-label">Home</span>
         </a>
 
         <?php foreach ($activeSections as $index => $section): ?>
-            
             <?php if ($index > 0): ?><div class="nav-divider"></div><?php endif; ?>
 
             <div class="nav-group">
                 <?php foreach ($section['items'] as $item): 
                     $itemPath = $item['path'] ?? ''; 
-                    
                     if($itemPath === '/') continue; 
 
-                    $isActive = ($itemPath !== '' && strpos($current_path, $itemPath) !== false);
                     $hasSub = !empty($item['subItems']);
+                    $isMainActive = ($itemPath !== '' && strpos($current_path, $itemPath) !== false);
                     
-                    // Keep submenu open if child is active
-                    if($hasSub && !$isActive) {
+                    // Logic to keep parent active if a child is active
+                    $childActive = false;
+                    if($hasSub) {
                         foreach($item['subItems'] as $sub) {
                             if (strpos($current_path, $sub['path']) !== false) {
-                                $isActive = true; 
+                                $childActive = true; 
                                 break;
                             }
                         }
                     }
+                    $activeClass = ($isMainActive || $childActive) ? 'active' : '';
                 ?>
                     
                     <div class="nav-wrapper" style="width: 100%;">
-                        <a href="<?= $itemPath ?: '#' ?>" class="nav-item <?= $isActive ? 'active' : '' ?> <?= $hasSub ? 'submenu-toggle' : '' ?>">
-                            <div class="icon-box">
-                                <i data-lucide="<?= $item['icon'] ?>"></i>
-                            </div>
+                        <a href="<?= $hasSub ? '#' : $itemPath ?>" class="nav-item <?= $activeClass ?> <?= $hasSub ? 'submenu-toggle' : '' ?>">
+                            <div class="icon-box"><i data-lucide="<?= $item['icon'] ?>"></i></div>
                             <span class="nav-label"><?= htmlspecialchars($item['name']) ?></span>
                         </a>
 
                         <?php if ($hasSub): ?>
-                            <div class="submenu-container <?= $isActive ? 'show' : '' ?>">
+                            <div class="submenu-container <?= ($childActive || $isMainActive) ? 'show' : '' ?>">
                                 <?php foreach($item['subItems'] as $sub): 
                                     $subPath = $sub['path'] ?? '#';
                                     $isSubActive = (strpos($current_path, $subPath) !== false);
                                 ?>
-                                    <a href="<?=$subPath?>" class="sub-link <?= $isSubActive ? 'active text-warning' : '' ?>"><?= $sub['name'] ?></a>
+                                    <a href="<?=$subPath?>" class="sub-link <?= $isSubActive ? 'active' : '' ?>"><?= $sub['name'] ?></a>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
                     </div>
-
                 <?php endforeach; ?>
             </div>
         <?php endforeach; ?>
 
         <div class="user-profile">
             <div class="nav-divider"></div>
-            
             <a href="/profile" style="text-decoration: none; display: flex; flex-direction: column; align-items: center;">
-                <div class="user-avatar">
-                    <?= strtoupper(substr($user['name'], 0, 1)) ?>
-                </div>
+                <div class="user-avatar"><?= strtoupper(substr($user['name'], 0, 1)) ?></div>
                 <div class="user-name"><?= htmlspecialchars($user['name']) ?></div>
                 <div class="user-role"><?= htmlspecialchars($user['role']) ?></div>
             </a>
         </div>
-
     </aside>
 
     <script>
@@ -360,19 +285,23 @@ foreach ($sections as $section) {
                 const container = item.nextElementSibling;
                 if(container && container.classList.contains('submenu-container')) {
                     e.preventDefault();
+                    
+                    // Close other submenus (Optional)
+                    // document.querySelectorAll('.submenu-container').forEach(c => {
+                    //    if(c !== container) c.classList.remove('show');
+                    // });
+
                     container.classList.toggle('show');
                 }
             })
         });
 
-        // Logo Fallback
         const img = document.getElementById('sidebarLogo');
         const err = document.getElementById('logoError');
         if(img){
             img.onerror = function() {
                 img.style.display = 'none';
                 err.style.display = 'block';
-                console.error("Logo failed to load from: " + img.src);
             };
         }
     </script>
