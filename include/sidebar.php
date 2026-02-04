@@ -17,7 +17,27 @@ $sections = [
         'items' => [
             ['name' => 'Dashboard', 'path' => '/', 'icon' => 'layout-dashboard', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
             ['name' => 'Team Lead', 'path' => '/teamlead', 'icon' => 'users', 'allowed' => ['TL', 'HR', 'Manager']],
-            ['name' => 'HR Management', 'path' => '/hrManagement', 'icon' => 'fingerprint', 'allowed' => ['Manager', 'HR']],
+            
+            // --- HR MANAGEMENT (Setup + Recruitment) ---
+            [
+                'name' => 'HR Management', 
+                'icon' => 'fingerprint', 
+                'allowed' => ['Manager', 'HR'],
+                'subItems' => [
+                    // Core Setup
+                    ['name' => 'Employees', 'path' => '/workack/hr/employees.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Departments', 'path' => '/workack/hr/departments.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Designations', 'path' => '/workack/hr/designations.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Holidays', 'path' => '/workack/hr/holidays.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Policies', 'path' => '/workack/hr/policy.php', 'allowed' => ['Manager', 'HR']],
+                    
+                    // Recruitment (Moved Inside HR)
+                    ['name' => 'Jobs', 'path' => '/workack/hr/jobs.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Candidates', 'path' => '/workack/hr/canditates_grid.php', 'allowed' => ['Manager', 'HR']],
+                ]
+            ],
+            // -------------------------------------------
+
             ['name' => 'Directory', 'path' => '/employees', 'icon' => 'users', 'allowed' => ['Manager', 'HR']],
             ['name' => 'Manager', 'path' => '/manager', 'icon' => 'shield-check', 'allowed' => ['Manager', 'HR']],
         ]
@@ -25,12 +45,29 @@ $sections = [
     [
         'label' => 'Operations',
         'items' => [
+            // --- PERFORMANCE MANAGEMENT ---
+            [
+                'name' => 'Performance', 
+                'icon' => 'bar-chart-2', 
+                'allowed' => ['Manager', 'HR', 'TL'],
+                'subItems' => [
+                    ['name' => 'Indicator', 'path' => '/workack/performance/performance_indicator.php', 'allowed' => ['Manager', 'HR', 'TL']],
+                    ['name' => 'Review', 'path' => '/workack/performance/performance_review.php', 'allowed' => ['Manager', 'HR', 'TL']],
+                    ['name' => 'Appraisal', 'path' => '/workack/performance/performance_appraisal.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Probation', 'path' => '/workack/performance/probation_management.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Notice Period', 'path' => '/workack/performance/notice_period.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Resignation', 'path' => '/workack/performance/resignation.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Termination', 'path' => '/workack/performance/termination.php', 'allowed' => ['Manager', 'HR']],
+                ]
+            ],
+            // ------------------------------
+
             ['name' => 'Attendance', 'path' => '/EmployeeAttendance', 'icon' => 'calendar-check', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
             ['name' => 'Tasks', 'path' => '/tasks', 'icon' => 'clipboard-list', 'allowed' => ['Manager', 'TL', 'Employee', 'HR', 'DM']],
             ['name' => 'Teams', 'path' => '/teams', 'icon' => 'message-square', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts']],
             ['name' => 'Payroll', 'path' => '/payroll', 'icon' => 'banknote', 'allowed' => ['Manager', 'HR', 'Accounts']],
             
-            // --- UPDATED ACCOUNTS TEAM SECTION WITH SUB-ITEMS ---
+            // --- ACCOUNTS (Preserved) ---
             [
                 'name' => 'Accounts', 
                 'icon' => 'calculator', 
@@ -43,10 +80,8 @@ $sections = [
                     ['name' => 'Reports', 'path' => '/workack/accounts/accounts_reports.php', 'allowed' => ['Manager', 'HR', 'Accounts']],
                 ]
             ],
-            // ---------------------------------------------------
-
-            ['name' => 'Recruitment', 'path' => '/recruitment', 'icon' => 'briefcase', 'allowed' => ['Manager', 'HR']],
             
+            // --- DIGITAL MARKETING (Preserved) ---
             [
                 'name' => 'Digital Marketing', 
                 'icon' => 'target', 
@@ -213,7 +248,7 @@ foreach ($sections as $section) {
 
     <aside class="sidebar">
         <a href="#" class="brand-logo">
-            <img src="/project2/workack/assets/logo.png" alt="Workack" class="brand-image" id="sidebarLogo">
+            <img src="/workack/assets/logo.png" alt="Workack" class="brand-image" id="sidebarLogo">
             <div id="logoError" style="display:none; font-size: 8px; color: red; text-align: center; margin-top: 5px;">Image Missing<br>Check: assets/logo.png</div>
         </a>
         
@@ -286,7 +321,7 @@ foreach ($sections as $section) {
                 if(container && container.classList.contains('submenu-container')) {
                     e.preventDefault();
                     
-                    // Close other submenus (Optional)
+                    // Close other submenus (Optional - currently commented out)
                     // document.querySelectorAll('.submenu-container').forEach(c => {
                     //    if(c !== container) c.classList.remove('show');
                     // });
