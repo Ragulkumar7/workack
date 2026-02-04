@@ -107,7 +107,7 @@ if (isset($_POST['auth_action'])) {
                     $_SESSION['username'] = $row['username'];
                     $_SESSION['role'] = $row['role']; 
 
-                    // --- REDIRECTION LOGIC ---
+                    // --- REDIRECTION LOGIC (UPDATED) ---
                     if ($row['role'] === 'Admin') {
                         header("Location: ../admin/admindashboard.php");
                         exit();
@@ -115,7 +115,9 @@ if (isset($_POST['auth_action'])) {
                         header("Location: ../hr/hr_dashboard.php");
                         exit();
                     } elseif ($row['role'] === 'Employee') {
-                         $error = "Employee Dashboard not created yet.";
+                         // FIX APPLIED HERE: Redirect to the correct file path
+                         header("Location: ../employee/emp_dashboard.php");
+                         exit();
                     }
                 }
 
