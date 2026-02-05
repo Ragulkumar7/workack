@@ -25,21 +25,36 @@ $tlProfile = [
     'email' => 'tl.manager@company.com'
 ];
 
-// --- 4. DATA FETCHING LOGIC ---
+// --- 4. DATA FETCHING & INSERTION LOGIC ---
 $teamProgress = [];
 $teamReviews = [];
-$filedCharges = []; // Added for new section
+$filedCharges = []; 
 
 if (isset($conn) && $conn) {
-    // Handle File Charge Submission
+    // --- ADDED: DATABASE INSERTION LOGIC (FIXED COLUMN NAMES) ---
+    if (isset($_POST['submit_real_charge'])) {
+        $empName = mysqli_real_escape_string($conn, $_POST['employee_name']);
+        $issue = mysqli_real_escape_string($conn, $_POST['issue_type']);
+        $details = mysqli_real_escape_string($conn, $_POST['description']); 
+        $filedBy = $user['name'];
+
+        $sqlSave = "INSERT INTO disciplinary_actions (employee, issue_type, details, filed_by, status) 
+                    VALUES ('$empName', '$issue', '$details', '$filedBy', 'SENT TO MANAGER')";
+        
+        if(mysqli_query($conn, $sqlSave)) {
+            header("Location: " . $_SERVER['PHP_SELF'] . "?status=success");
+            exit();
+        }
+    }
+
+    // Existing Handle File Charge Submission (Legacy support)
     if (isset($_POST['file_charge'])) {
         $empName = mysqli_real_escape_string($conn, $_POST['employee_name']);
         $issueType = mysqli_real_escape_string($conn, $_POST['issue_type']);
         $description = mysqli_real_escape_string($conn, $_POST['description']);
         
-        // Assuming a table 'disciplinary_actions' exists or creating a local log
-        $sqlCharge = "INSERT INTO disciplinary_actions (employee_name, issue_type, description, filed_by, status) 
-                      VALUES ('$empName', '$issueType', '$description', '{$user['name']}', 'Pending Manager Review')";
+        $sqlCharge = "INSERT INTO disciplinary_actions (employee, issue_type, details, filed_by, status) 
+                      VALUES ('$empName', '$issueType', '$description', '{$user['name']}', 'SENT TO MANAGER')";
         mysqli_query($conn, $sqlCharge);
     }
 
@@ -58,6 +73,15 @@ if (isset($conn) && $conn) {
     if ($resReviews && mysqli_num_rows($resReviews) > 0) {
         while($row = mysqli_fetch_assoc($resReviews)) {
             $teamReviews[] = $row;
+        }
+    }
+
+    // Fetch Filed Charges for the log table
+    $sqlFiled = "SELECT * FROM disciplinary_actions ORDER BY created_at DESC";
+    $resFiled = mysqli_query($conn, $sqlFiled);
+    if ($resFiled && mysqli_num_rows($resFiled) > 0) {
+        while($row = mysqli_fetch_assoc($resFiled)) {
+            $filedCharges[] = $row;
         }
     }
 }
@@ -114,6 +138,7 @@ function getStatusStyles($status) {
         .badge-green { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
         .badge-orange { background: #fff7ed; color: #c2410c; border-color: #ffedd5; }
         .badge-red { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+        .status-sent { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; }
         .tl-btn { padding: 10px 20px; border-radius: 6px; font-weight: 700; cursor: pointer; border: none; background: #FF9B44; color: white; }
         .btn-danger { background: #dc2626; }
     </style>
@@ -224,7 +249,18 @@ function getStatusStyles($status) {
                                 </tr>
                             </thead>
                             <tbody id="chargeLogBody">
-                                <tr id="noChargePlaceholder"><td colspan="4" style="text-align:center; color:#999;">No charges filed against team members.</td></tr>
+                                <?php if (!empty($filedCharges)): ?>
+                                    <?php foreach($filedCharges as $charge): ?>
+                                        <tr class="immersive-row">
+                                            <td class="immersive-cell"><strong><?= htmlspecialchars($charge['employee']) ?></strong></td>
+                                            <td class="immersive-cell"><span class="badge badge-red"><?= htmlspecialchars($charge['issue_type']) ?></span></td>
+                                            <td class="immersive-cell" style="color:#666;"><?= htmlspecialchars($charge['details']) ?></td>
+                                            <td class="immersive-cell"><span class="status-sent"><?= htmlspecialchars($charge['status']) ?></span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr id="noChargePlaceholder"><td colspan="4" style="text-align:center; color:#999;">No charges filed against team members.</td></tr>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -266,12 +302,14 @@ function getStatusStyles($status) {
 
     <div id="actionModal" class="modal-overlay">
         <div class="modal-box">
-            <i data-lucide="x" style="position:absolute; top:20px; right:20px; cursor:pointer; color:#999;" onclick="closeModal('actionModal')"></i>
-            <h3 id="modalTitle">Details</h3>
-            <div id="modalContent"></div>
-            <div style="margin-top:25px; text-align:right;" id="modalFooter">
-                <button onclick="closeModal('actionModal')" class="tl-btn">Done</button>
-            </div>
+            <form id="modalForm" method="POST">
+                <i data-lucide="x" style="position:absolute; top:20px; right:20px; cursor:pointer; color:#999;" onclick="closeModal('actionModal')"></i>
+                <h3 id="modalTitle">Details</h3>
+                <div id="modalContent"></div>
+                <div style="margin-top:25px; text-align:right;" id="modalFooter">
+                    <button type="button" onclick="closeModal('actionModal')" class="tl-btn">Done</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -313,30 +351,30 @@ function getStatusStyles($status) {
             if(type === 'view') {
                 title.innerText = "Task Details: " + name;
                 content.innerHTML = `<p style="font-size:14px; color:#555;">Employee is currently working on: <strong>${task}</strong></p>`;
-                footer.innerHTML = `<button onclick="closeModal('actionModal')" class="tl-btn">Done</button>`;
+                footer.innerHTML = `<button type="button" onclick="closeModal('actionModal')" class="tl-btn">Done</button>`;
             } else if(type === 'edit') {
                 title.innerText = "Edit Task for " + name;
                 content.innerHTML = `<label style="font-size:12px; font-weight:600;">Update Assignment</label><input class="tl-input" id="editTaskInput" value="${task}">`;
-                footer.innerHTML = `<button onclick="saveEdit()" class="tl-btn">Update</button>`;
+                footer.innerHTML = `<button type="button" onclick="saveEdit()" class="tl-btn">Update</button>`;
             } else if(type === 'review') {
                 title.innerText = "Review Progress: " + name;
                 content.innerHTML = `<table class="review-table"><thead><tr><th>Criteria</th><th>Good</th><th>Bad</th></tr></thead><tbody><tr><td>Work Quality</td><td><input type="radio" name="work_quality" value="Good" checked></td><td><input type="radio" name="work_quality" value="Bad"></td></tr><tr><td>Timely Delivery</td><td><input type="radio" name="timely" value="Good" checked></td><td><input type="radio" name="timely" value="Bad"></td></tr></tbody></table><label style="margin-top:15px; display:block; font-size:12px;">Lead Comments</label><textarea class="tl-textarea" id="reviewComments" placeholder="Add feedback..."></textarea>`;
-                footer.innerHTML = `<button onclick="submitReview()" class="tl-btn">Done</button>`;
+                footer.innerHTML = `<button type="button" onclick="submitReview()" class="tl-btn">Done</button>`;
             } else if(type === 'charge') {
-                // NEW MODAL: FILE CHARGE
                 title.innerText = "File Charge Against: " + name;
                 content.innerHTML = `
+                    <input type="hidden" name="employee_name" value="${name}">
                     <label style="font-size:12px; font-weight:600;">Issue Category</label>
-                    <select class="tl-select" id="issueType">
-                        <option value="Not Working">Not Working / Idle</option>
-                        <option value="Behavioral Issue">Behavioral Issue</option>
-                        <option value="Attendance Gap">Attendance Gap</option>
-                        <option value="Quality Failure">Severe Quality Failure</option>
+                    <select class="tl-select" name="issue_type" required>
+                        <option value="BEHAVIORAL ISSUE">Behavioral Issue</option>
+                        <option value="NOT WORKING">Not Working / Idle</option>
+                        <option value="ATTENDANCE GAP">Attendance Gap</option>
+                        <option value="QUALITY FAILURE">Severe Quality Failure</option>
                     </select>
                     <label style="margin-top:15px; display:block; font-size:12px; font-weight:600;">Detailed Reason for Charge</label>
-                    <textarea class="tl-textarea" id="chargeDescription" placeholder="Explain the issue for the manager..."></textarea>
+                    <textarea class="tl-textarea" name="description" required placeholder="Explain the issue for the manager..."></textarea>
                 `;
-                footer.innerHTML = `<button onclick="submitCharge()" class="tl-btn btn-danger">File Charge to Manager</button>`;
+                footer.innerHTML = `<button type="submit" name="submit_real_charge" class="tl-btn btn-danger">File Charge to Manager</button>`;
             }
             document.getElementById('actionModal').classList.add('open');
         }
@@ -344,27 +382,6 @@ function getStatusStyles($status) {
         function saveEdit() {
             closeModal('actionModal');
             handleSuccess("Task updated successfully!");
-        }
-
-        function submitCharge() {
-            const issue = document.getElementById('issueType').value;
-            const desc = document.getElementById('chargeDescription').value || "No details provided";
-            const tableBody = document.getElementById('chargeLogBody');
-            const placeholder = document.getElementById('noChargePlaceholder');
-            
-            if (placeholder) placeholder.remove();
-            
-            const newRow = `
-                <tr class="immersive-row">
-                    <td style="font-weight:600; padding:10px;">${activeReviewee}</td>
-                    <td style="padding:10px;"><span class="badge badge-red">${issue}</span></td>
-                    <td style="font-size:12px; color:#666; padding:10px;">${desc}</td>
-                    <td style="padding:10px;"><span class="badge" style="background:#fefce8; color:#854d0e; border-color:#fef08a;">Sent to Manager</span></td>
-                </tr>`;
-            tableBody.innerHTML = newRow + tableBody.innerHTML;
-            
-            closeModal('actionModal');
-            handleSuccess("Charge has been successfully filed with the Manager.");
         }
 
         function submitReview() {
