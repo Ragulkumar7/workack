@@ -79,7 +79,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_invoice'])) {
     
     if(mysqli_query($conn, $ins)) {
         // Redirect to list page (we will create this next)
-        header("Location: invoice_management.php?msg=added"); 
+        header("Location: add_invoice.php?msg=added"); 
         exit();
     } else {
         die("Error: " . mysqli_error($conn));

@@ -9,13 +9,9 @@ foreach ($paths as $path) { if (file_exists($path)) { include $path; break; } }
 if (!isset($conn)) die("Error: DB connection not found.");
 
 // 2. CREATE PAYMENTS TABLE
-// This links to the 'invoices' table via invoice_id
 $sql = "CREATE TABLE IF NOT EXISTS `payments` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `invoice_id` int(11) NOT NULL,
-  `invoice_no` varchar(50),
-  `client_name` varchar(100),
-  `company_name` varchar(100),
   `payment_type` varchar(50),
   `paid_date` date,
   `paid_amount` decimal(15,2),
@@ -24,23 +20,40 @@ $sql = "CREATE TABLE IF NOT EXISTS `payments` (
 )";
 mysqli_query($conn, $sql);
 
-// 3. SEED DUMMY DATA (Only if table is empty, for demonstration)
-$check = mysqli_query($conn, "SELECT COUNT(*) as count FROM payments");
-$row = mysqli_fetch_assoc($check);
-if ($row['count'] == 0) {
-    // Insert some sample data to match your screenshot
-    $dummy_data = [
-        "INSERT INTO payments (invoice_no, client_name, company_name, payment_type, paid_date, paid_amount) VALUES ('INV-001', 'Michael Walker', 'BrightWave Innovations', 'Paypal', '2024-01-15', 3000.00)",
-        "INSERT INTO payments (invoice_no, client_name, company_name, payment_type, paid_date, paid_amount) VALUES ('INV-002', 'Sophie Headrick', 'Stellar Dynamics', 'Paypal', '2024-01-25', 2500.00)",
-        "INSERT INTO payments (invoice_no, client_name, company_name, payment_type, paid_date, paid_amount) VALUES ('INV-003', 'Cameron Drake', 'Quantum Nexus', 'Paypal', '2024-02-22', 2800.00)"
-    ];
-    foreach($dummy_data as $q) mysqli_query($conn, $q);
+// 3. HANDLE ADD PAYMENT
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_payment'])) {
+    $inv_id = intval($_POST['invoice_id']);
+    $pay_type = mysqli_real_escape_string($conn, $_POST['payment_type']);
+    $date = $_POST['paid_date'];
+    $amount = floatval($_POST['paid_amount']);
+
+    // Insert Payment
+    $ins = "INSERT INTO payments (invoice_id, payment_type, paid_date, paid_amount) VALUES ('$inv_id', '$pay_type', '$date', '$amount')";
+    if(mysqli_query($conn, $ins)) {
+        // Optional: Auto-update Invoice status to 'Paid'
+        mysqli_query($conn, "UPDATE invoices SET status='Paid' WHERE id=$inv_id");
+        
+        header("Location: payments.php?msg=added");
+        exit();
+    } else {
+        echo "Error: " . mysqli_error($conn);
+    }
 }
 
-// 4. FETCH DATA
+// 4. FETCH PAYMENTS (Linked to Actual Invoices)
+// We JOIN with the 'invoices' table to get the real Client Name and Invoice No you created earlier.
 $payments = [];
-$res = mysqli_query($conn, "SELECT * FROM payments ORDER BY paid_date DESC");
+$query = "SELECT p.*, i.invoice_no, i.client_name, i.grand_total 
+          FROM payments p 
+          JOIN invoices i ON p.invoice_id = i.id 
+          ORDER BY p.paid_date DESC";
+$res = mysqli_query($conn, $query);
 if($res) { while($row = mysqli_fetch_assoc($res)) $payments[] = $row; }
+
+// 5. FETCH INVOICES FOR DROPDOWN (Only Pending Invoices)
+$invoices_list = [];
+$inv_res = mysqli_query($conn, "SELECT id, invoice_no, client_name, grand_total FROM invoices WHERE status != 'Paid' ORDER BY id DESC");
+if($inv_res) { while($row = mysqli_fetch_assoc($inv_res)) $invoices_list[] = $row; }
 ?>
 
 <!DOCTYPE html>
@@ -78,6 +91,13 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $payments[] = $row; }
         <div class="page-wrapper">
             <div class="content">
                 
+                <?php if(isset($_GET['msg']) && $_GET['msg'] == 'added'): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    Payment recorded successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
+
                 <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
                     <div class="my-auto mb-2">
                         <h2 class="mb-1">Payments</h2>
@@ -90,39 +110,15 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $payments[] = $row; }
                         </nav>
                     </div>
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap gap-2">
-                        <div class="dropdown">
-                            <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                <i class="ti ti-file-export me-1"></i>Export
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end p-3">
-                                <li><a href="javascript:void(0);" class="dropdown-item rounded-1"><i class="ti ti-file-type-pdf me-1"></i>Export as PDF</a></li>
-                                <li><a href="javascript:void(0);" class="dropdown-item rounded-1"><i class="ti ti-file-type-xls me-1"></i>Export as Excel</a></li>
-                            </ul>
-                        </div>
+                        <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#add_payment_modal">
+                            <i class="ti ti-plus me-2"></i>Record Payment
+                        </button>
                     </div>
                 </div>
 
                 <div class="card">
                     <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
                         <h5>Payment List</h5>
-                        <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                            <div class="me-3">
-                                <div class="input-icon position-relative">
-                                    <span class="input-icon-addon"><i class="ti ti-calendar text-gray-9"></i></span>
-                                    <input type="text" class="form-control" placeholder="dd/mm/yyyy - dd/mm/yyyy">
-                                </div>
-                            </div>
-                            <div class="dropdown">
-                                <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                    Sort By : Last 7 Days
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end p-3">
-                                    <li><a href="javascript:void(0);" class="dropdown-item rounded-1">Recently Added</a></li>
-                                    <li><a href="javascript:void(0);" class="dropdown-item rounded-1">Ascending</a></li>
-                                    <li><a href="javascript:void(0);" class="dropdown-item rounded-1">Descending</a></li>
-                                </ul>
-                            </div>
-                        </div>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -131,7 +127,6 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $payments[] = $row; }
                                     <tr>
                                         <th>Invoice ID</th>
                                         <th>Client Name</th>
-                                        <th>Company Name</th>
                                         <th>Payment Type</th>
                                         <th>Paid Date</th>
                                         <th>Paid Amount</th>
@@ -139,7 +134,7 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $payments[] = $row; }
                                 </thead>
                                 <tbody>
                                     <?php if(empty($payments)): ?>
-                                        <tr><td colspan="6" class="text-center p-4">No payments found.</td></tr>
+                                        <tr><td colspan="5" class="text-center p-4">No payments recorded yet. Click "Record Payment" to add one.</td></tr>
                                     <?php else: ?>
                                         <?php foreach($payments as $pay): ?>
                                         <tr>
@@ -149,12 +144,9 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $payments[] = $row; }
                                                     <span class="avatar avatar-md bg-secondary rounded-circle text-white me-2">
                                                         <?= strtoupper(substr($pay['client_name'], 0, 2)) ?>
                                                     </span>
-                                                    <div>
-                                                        <h6 class="fw-medium mb-0"><?= htmlspecialchars($pay['client_name']) ?></h6>
-                                                    </div>
+                                                    <h6 class="fw-medium mb-0"><?= htmlspecialchars($pay['client_name']) ?></h6>
                                                 </div>
                                             </td>
-                                            <td><?= htmlspecialchars($pay['company_name']) ?></td>
                                             <td><?= htmlspecialchars($pay['payment_type']) ?></td>
                                             <td><?= date('d M Y', strtotime($pay['paid_date'])) ?></td>
                                             <td>₹<?= number_format($pay['paid_amount'], 2) ?></td>
@@ -176,6 +168,67 @@ if($res) { while($row = mysqli_fetch_assoc($res)) $payments[] = $row; }
         </div>
     </div>
 
+    <div class="modal fade" id="add_payment_modal">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Record New Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="payments.php" method="POST">
+                    <input type="hidden" name="add_payment" value="1">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Select Invoice <span class="text-danger">*</span></label>
+                            <select name="invoice_id" class="form-select" required onchange="updateAmount(this)">
+                                <option value="">Select an Invoice</option>
+                                <?php foreach($invoices_list as $inv): ?>
+                                    <option value="<?= $inv['id'] ?>" data-amount="<?= $inv['grand_total'] ?>">
+                                        <?= $inv['invoice_no'] ?> - <?= $inv['client_name'] ?> (₹<?= $inv['grand_total'] ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if(empty($invoices_list)): ?>
+                                <small class="text-danger">No pending invoices found.</small>
+                            <?php endif; ?>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Payment Date</label>
+                            <input type="date" name="paid_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Amount Received (₹)</label>
+                            <input type="number" name="paid_amount" id="pay_amount" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Payment Method</label>
+                            <select name="payment_type" class="form-select">
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Cheque">Cheque</option>
+                                <option value="Paypal">Paypal</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Submit Payment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auto-fill amount when invoice is selected
+        function updateAmount(select) {
+            let option = select.options[select.selectedIndex];
+            let amount = option.getAttribute('data-amount');
+            if(amount) {
+                document.getElementById('pay_amount').value = amount;
+            }
+        }
+    </script>
 </body>
 </html>
