@@ -72,6 +72,13 @@ $user = ['name' => 'TL Manager', 'role' => 'Team Lead', 'avatar_initial' => 'T']
         .badge-success { background: #dcfce7; color: #166534; }
         .badge-warning { background: #fff7ed; color: #c2410c; }
         .badge-info { background: #e0f2fe; color: #0369a1; }
+
+        /* Notification-style Task List */
+        .task-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid #f9fafb; transition: background 0.2s; }
+        .task-item:hover { background: #fcfcfc; }
+        .task-details { display: flex; flex-direction: column; }
+        .task-emp-name { font-size: 13px; font-weight: 600; color: #111827; }
+        .task-proj-name { font-size: 12px; color: #6b7280; }
     </style>
 </head>
 <body>
@@ -146,7 +153,6 @@ $user = ['name' => 'TL Manager', 'role' => 'Team Lead', 'avatar_initial' => 'T']
                         <thead><tr><th>Name</th><th>In</th><th>Break</th><th>Out</th></tr></thead>
                         <tbody>
                             <?php
-                            // Fixed: Added error checking to prevent the Argument #1 Fatal Error
                             $res = mysqli_query($conn, "SELECT employee_name, check_in, break_time, check_out FROM team_attendance WHERE attendance_date = CURDATE() LIMIT 5");
                             if ($res) {
                                 while($row = mysqli_fetch_assoc($res)) { ?>
@@ -162,6 +168,31 @@ $user = ['name' => 'TL Manager', 'role' => 'Team Lead', 'avatar_initial' => 'T']
                             } ?>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <div class="content-card" style="margin-bottom: 25px;">
+                <div class="table-header"><i data-lucide="bell" size="16"></i> Task Completion Status</div>
+                <div class="task-notification-list">
+                    <?php
+                    // Fetching recent task updates for status notification
+                    $task_res = mysqli_query($conn, "SELECT employee_name, project_name, status FROM tasks ORDER BY id DESC LIMIT 5");
+                    if ($task_res && mysqli_num_rows($task_res) > 0) {
+                        while($task = mysqli_fetch_assoc($task_res)) { ?>
+                            <div class="task-item">
+                                <div class="task-details">
+                                    <span class="task-emp-name"><?= htmlspecialchars($task['employee_name']) ?></span>
+                                    <span class="task-proj-name">Project: <?= htmlspecialchars($task['project_name']) ?></span>
+                                </div>
+                                <span class="badge <?= (strtolower($task['status']) == 'completed') ? 'badge-success' : 'badge-warning' ?>">
+                                    <?= htmlspecialchars($task['status']) ?>
+                                </span>
+                            </div>
+                        <?php }
+                    } else {
+                        echo "<p style='padding:20px; color:#6b7280; font-size:13px; text-align:center;'>No recent task updates found.</p>";
+                    }
+                    ?>
                 </div>
             </div>
 
