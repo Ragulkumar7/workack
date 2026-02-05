@@ -1,24 +1,27 @@
 <?php
 // 1. MOCK USER DATA
-$user = [
-    'name' => 'John Doe',
-    'role' => 'Manager' 
-];
-
-// 2. GET CURRENT URL
+$user = ['name' => 'John Doe', 'role' => 'Manager'];
 $current_path = $_SERVER['REQUEST_URI'];
-?>
 
-<?php
-// 3. DEFINE MENU DATA
+// 2. DEFINE MENU DATA
 $sections = [
     [
         'label' => 'Main',
         'items' => [
-            ['name' => 'Dashboard', 'path' => '/', 'icon' => 'layout-dashboard', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
-            ['name' => 'Team Lead', 'path' => '/teamlead', 'icon' => 'users', 'allowed' => ['TL', 'HR', 'Manager']],
-            ['name' => 'HR Management', 'path' => '/hrManagement', 'icon' => 'fingerprint', 'allowed' => ['Manager', 'HR']],
-            ['name' => 'Directory', 'path' => '/employees', 'icon' => 'users', 'allowed' => ['Manager', 'HR']],
+            ['name' => 'Home', 'path' => '/', 'icon' => 'home', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
+            ['name' => 'Dashboard', 'path' => '/dashboard', 'icon' => 'layout-dashboard', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
+            ['name' => 'Team Lead', 'icon' => 'users', 'allowed' => ['TL', 'HR', 'Manager'], 
+                'subItems' => [
+                    ['name' => 'Overview', 'path' => '/teamlead/overview', 'icon' => 'layout-grid'], 
+                    ['name' => 'Performance', 'path' => '/teamlead/performance', 'icon' => 'gauge']
+                ]
+            ],
+            ['name' => 'HR Management', 'icon' => 'fingerprint', 'allowed' => ['Manager', 'HR'], 
+                'subItems' => [
+                    ['name' => 'Records', 'path' => '/hr/records', 'icon' => 'database']
+                ]
+            ],
+            ['name' => 'Directory', 'path' => '/employees', 'icon' => 'book-user', 'allowed' => ['Manager', 'HR']],
             ['name' => 'Manager', 'path' => '/manager', 'icon' => 'shield-check', 'allowed' => ['Manager', 'HR']],
         ]
     ],
@@ -28,44 +31,26 @@ $sections = [
             ['name' => 'Attendance', 'path' => '/EmployeeAttendance', 'icon' => 'calendar-check', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
             ['name' => 'Tasks', 'path' => '/tasks', 'icon' => 'clipboard-list', 'allowed' => ['Manager', 'TL', 'Employee', 'HR', 'DM']],
             ['name' => 'Teams', 'path' => '/teams', 'icon' => 'message-square', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts']],
-            ['name' => 'Payroll', 'path' => '/payroll', 'icon' => 'banknote', 'allowed' => ['Manager', 'HR']],
+            ['name' => 'Payroll', 'path' => '/payroll', 'icon' => 'banknote', 'allowed' => ['Manager', 'Accounts']],
             ['name' => 'Recruitment', 'path' => '/recruitment', 'icon' => 'briefcase', 'allowed' => ['Manager', 'HR']],
-            
-            // --- UPDATED CRM / DIGITAL MARKETING SECTION ---
-            [
-                'name' => 'Digital Marketing', // Renamed from Marketing for clarity
-                'icon' => 'target', // Lucide Icon
-                'allowed' => ['DM', 'Manager'],
+            ['name' => 'Digital Marketing', 'icon' => 'target', 'allowed' => ['DM', 'Manager'], 
                 'subItems' => [
-                    ['name' => 'Dashboard', 'path' => '/workack/digital_marketing/dm_dashboard.php', 'allowed' => ['DM', 'Manager']],
-                    ['name' => 'Companies', 'path' => '/workack/digital_marketing/companies.php', 'allowed' => ['DM', 'Manager']],
-                    ['name' => 'Contacts', 'path' => '/workack/digital_marketing/contacts.php', 'allowed' => ['DM', 'Manager']],
-                    ['name' => 'Leads', 'path' => '/workack/digital_marketing/leads.php', 'allowed' => ['DM', 'Manager']],
-                    ['name' => 'Deals', 'path' => '/workack/digital_marketing/deals.php', 'allowed' => ['DM', 'Manager']],
-                    ['name' => 'Pipeline', 'path' => '/workack/digital_marketing/pipeline.php', 'allowed' => ['DM', 'Manager']],
-                    ['name' => 'Activities', 'path' => '/workack/digital_marketing/activity.php', 'allowed' => ['DM', 'Manager']],
-                    ['name' => 'Analytics', 'path' => '/workack/digital_marketing/analytics.php', 'allowed' => ['DM', 'Manager']],
+                    ['name' => 'Dashboard', 'path' => '/dm/dashboard', 'icon' => 'layout-dashboard'],
+                    ['name' => 'Analytics', 'path' => '/dm/analytics', 'icon' => 'trending-up']
                 ]
             ],
-            // -----------------------------------------------
-        ]
-    ],
-    [
-        'label' => 'System',
-        'items' => [
-            ['name' => 'Reports', 'path' => '/reports', 'icon' => 'file-text', 'allowed' => ['Manager', 'TL', 'HR', 'Accounts', 'DM']],
-            ['name' => 'Settings', 'path' => '/settings', 'icon' => 'settings', 'allowed' => ['Manager', 'TL', 'Employee', 'Accounts', 'HR', 'DM']],
+            ['name' => 'Reports', 'path' => '/reports', 'icon' => 'file-text', 'allowed' => ['Manager', 'HR', 'TL']],
+            ['name' => 'Settings', 'path' => '/settings', 'icon' => 'settings', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
         ]
     ]
 ];
 
-// 4. FILTER ITEMS
+// 3. FILTER SECTIONS
 $activeSections = [];
 foreach ($sections as $section) {
     $filteredItems = array_filter($section['items'], function ($item) use ($user) {
         return in_array($user['role'], $item['allowed']);
     });
-
     if (!empty($filteredItems)) {
         $section['items'] = $filteredItems;
         $activeSections[] = $section;
@@ -77,299 +62,186 @@ foreach ($sections as $section) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sidebar</title>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* === YOUR CUSTOM WIDTH === */
-            --sidebar-width: 110px; 
-            
-            --active-bg: #EAEAEA;
-            --active-border: #D1D1D1;
-            --text-color: #555555;
-            --icon-color: #444444;
-            --hover-bg: #F5F5F5;
-            --body-bg: #ffffff;
+            --primary-sidebar-width: 95px;
+            --secondary-sidebar-width: 220px; 
+            --active-bg: #f4f4f5;
+            --border-color: #e4e4e7;
+            --text-muted: #71717a;
         }
 
-        body {
-            background-color: var(--body-bg);
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding-left: var(--sidebar-width); 
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
+        body { margin: 0; font-family: 'Inter', sans-serif; display: flex; background: #fff; height: 100vh; overflow: hidden; }
 
-        .sidebar {
-            width: var(--sidebar-width);
+        /* PRIMARY SIDEBAR */
+        .sidebar-primary {
+            width: var(--primary-sidebar-width); 
             height: 100vh;
-            background: #ffffff;
-            border-right: 1px solid #eee;
+            border-right: 1px solid var(--border-color);
+            background: #fff; 
+            position: fixed; 
+            left: 0; 
+            top: 0;
+            z-index: 1001;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+        .sidebar-primary::-webkit-scrollbar { display: none; }
+
+        .nav-inner {
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px 0;
-            position: fixed;
-            left: 0;
-            top: 0;
-            overflow-y: auto;
-            scrollbar-width: none; 
-            -ms-overflow-style: none;
-            z-index: 1000;
-        }
-        
-        .sidebar::-webkit-scrollbar { display: none; }
-
-        .brand-logo {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 25px;
-            text-decoration: none;
-            cursor: pointer;
-            width: 100%;
-            padding: 0; 
-            box-sizing: border-box;
-        }
-
-        .brand-image {
-            width: 100px; 
-            height: auto;
-            object-fit: contain;
-        }
-
-        .user-profile {
-            margin-top: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-bottom: 20px;
-            width: 100%;
-        }
-
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            background-color: #333;
-            color: #fff;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .user-name {
-            font-size: 10px;
-            font-weight: 600;
-            color: #333;
-            text-align: center;
-            max-width: 90px; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .user-role {
-            font-size: 9px;
-            color: #888;
-            margin-top: 2px;
-        }
-
-        .nav-group {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .nav-divider {
-            width: 40px;
-            height: 1px;
-            background-color: #eee;
-            margin: 10px 0;
+            min-height: 100%;
         }
 
         .nav-item {
+            width: 100%; 
+            padding: 12px 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+            cursor: pointer; 
+            text-decoration: none; 
+            color: var(--text-muted); 
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .nav-item:hover, .nav-item.active { color: #000; background: var(--active-bg); }
+        .nav-item span { font-size: 10px; margin-top: 5px; font-weight: 500; text-align: center; padding: 0 4px; }
+
+        /* SECONDARY SIDEBAR */
+        .sidebar-secondary {
+            width: var(--secondary-sidebar-width); 
+            height: 100vh; 
+            background: #fff;
+            border-right: 1px solid var(--border-color); 
+            position: fixed;
+            left: var(--primary-sidebar-width); 
+            top: 0;
+            transform: translateX(-105%);
+            transition: transform 0.3s ease; 
+            z-index: 1000; 
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+        .sidebar-secondary.open { transform: translateX(0); }
+
+        #subItemContainer {
+            /* Kept the 130px padding for the lower position you liked */
+            padding: 130px 15px 40px 15px; 
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            color: var(--text-color);
-            width: 100%;
-            padding: 10px 0;
-            transition: all 0.2s ease;
-            position: relative;
-            cursor: pointer;
         }
 
-        .icon-box {
-            width: 38px;
-            height: 38px;
+        .sub-item {
+            display: flex; align-items: center; padding: 10px;
+            text-decoration: none; color: #3f3f46; border-radius: 8px;
+            font-size: 13px; margin-bottom: 4px; transition: 0.2s; font-weight: 500;
+        }
+        .sub-item:hover { background: var(--active-bg); color: #000; }
+        .sub-item .sub-icon { margin-right: 10px; width: 16px; height: 16px; color: #71717a; }
+
+        .back-btn {
             display: flex;
             align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            background: transparent;
-            transition: all 0.2s ease;
-            margin-bottom: 6px;
-        }
-
-        .icon-box svg { 
-            width: 20px; 
-            height: 20px; 
-            stroke-width: 1.5px; 
-        }
-
-        .nav-label {
-            font-size: 11px;
-            font-weight: 500;
-            text-align: center;
-            line-height: 1.2;
-            color: #666;
-        }
-
-        .nav-item.active .icon-box {
-            background-color: var(--active-bg);
-            border: 1px solid var(--active-border);
-            color: #000;
-        }
-        
-        .nav-item.active .nav-label {
-            color: #000;
+            padding: 10px;
+            margin-bottom: 20px; /* Added extra space after back button since title is gone */
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 13px;
             font-weight: 600;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+        .back-btn:hover { color: #000; }
+
+        .user-footer {
+            margin-top: auto; padding: 20px 0; width: 100%;
+            display: flex; flex-direction: column; align-items: center;
+            border-top: 1px solid var(--border-color); background: #fff;
         }
 
-        .nav-item:hover .icon-box { background-color: var(--hover-bg); }
-
-        .submenu-container {
-            display: none;
-            background: #f9f9f9;
-            width: 100%;
-            padding-bottom: 10px;
-        }
-        .submenu-container.show { display: block; }
-        .sub-link { font-size: 10px; color: #888; text-decoration: none; padding: 5px 0; display: block; text-align: center;}
-        .sub-link:hover { color: orange; }
-
+        main { margin-left: var(--primary-sidebar-width); padding: 40px; width: 100%; transition: 0.3s; }
+        .main-shifted { margin-left: calc(var(--primary-sidebar-width) + var(--secondary-sidebar-width)); }
     </style>
 </head>
 <body>
 
-    <aside class="sidebar">
-        
-        <a href="#" class="brand-logo">
-            <img src="/workack/assets/logo.png" 
-                 alt="Workack" 
-                 class="brand-image"
-                 id="sidebarLogo">
-                 
-            <div id="logoError" style="display:none; font-size: 8px; color: red; text-align: center; margin-top: 5px;">
-                Image Missing<br>
-                Check: assets/logo.png
-            </div>
-        </a>
-        
-        <a href="/" class="nav-item <?= $current_path === '/' ? 'active' : '' ?>">
-            <div class="icon-box">
-                <i data-lucide="home"></i>
-            </div>
-            <span class="nav-label">Home</span>
-        </a>
-
-        <?php foreach ($activeSections as $index => $section): ?>
+    <aside class="sidebar-primary">
+        <div class="nav-inner">
+            <div style="width: 45px; height: 45px; background: #eee; border-radius: 12px; margin-bottom: 20px; flex-shrink: 0;"></div>
             
-            <?php if ($index > 0): ?><div class="nav-divider"></div><?php endif; ?>
-
-            <div class="nav-group">
-                <?php foreach ($section['items'] as $item): 
-                    $itemPath = $item['path'] ?? ''; 
-                    
-                    if($itemPath === '/') continue; 
-
-                    $isActive = ($itemPath !== '' && strpos($current_path, $itemPath) !== false);
-                    $hasSub = !empty($item['subItems']);
-                    
-                    // Keep submenu open if child is active
-                    if($hasSub && !$isActive) {
-                        foreach($item['subItems'] as $sub) {
-                            if (strpos($current_path, $sub['path']) !== false) {
-                                $isActive = true; 
-                                break;
-                            }
-                        }
-                    }
-                ?>
-                    
-                    <div class="nav-wrapper" style="width: 100%;">
-                        <a href="<?= $itemPath ?: '#' ?>" class="nav-item <?= $isActive ? 'active' : '' ?> <?= $hasSub ? 'submenu-toggle' : '' ?>">
-                            <div class="icon-box">
-                                <i data-lucide="<?= $item['icon'] ?>"></i>
-                            </div>
-                            <span class="nav-label"><?= htmlspecialchars($item['name']) ?></span>
-                        </a>
-
-                        <?php if ($hasSub): ?>
-                            <div class="submenu-container <?= $isActive ? 'show' : '' ?>">
-                                <?php foreach($item['subItems'] as $sub): 
-                                    $subPath = $sub['path'] ?? '#';
-                                    $isSubActive = (strpos($current_path, $subPath) !== false);
-                                ?>
-                                    <a href="<?=$subPath?>" class="sub-link <?= $isSubActive ? 'active text-warning' : '' ?>"><?= $sub['name'] ?></a>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-
+            <?php foreach ($activeSections as $section): ?>
+                <?php foreach ($section['items'] as $item): ?>
+                    <a href="javascript:void(0)" class="nav-item" onclick='handleNavClick(<?= json_encode($item) ?>, this)'>
+                        <i data-lucide="<?= $item['icon'] ?>"></i>
+                        <span><?= $item['name'] ?></span>
+                    </a>
                 <?php endforeach; ?>
+                <div style="width: 40px; height: 1px; background: var(--border-color); margin: 10px 0; flex-shrink: 0;"></div>
+            <?php endforeach; ?>
+
+            <div class="user-footer">
+                <div style="width: 42px; height: 42px; background: #27272a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; margin-bottom: 8px;">J</div>
+                <div style="font-size: 11px; font-weight: 600; color: #18181b;"><?= $user['name'] ?></div>
             </div>
-        <?php endforeach; ?>
-
-        <div class="user-profile">
-            <div class="nav-divider"></div>
-            
-            <a href="/profile" style="text-decoration: none; display: flex; flex-direction: column; align-items: center;">
-                <div class="user-avatar">
-                    <?= strtoupper(substr($user['name'], 0, 1)) ?>
-                </div>
-                <div class="user-name"><?= htmlspecialchars($user['name']) ?></div>
-                <div class="user-role"><?= htmlspecialchars($user['role']) ?></div>
-            </a>
         </div>
-
     </aside>
+
+    <aside class="sidebar-secondary" id="secondaryPanel">
+        <div id="subItemContainer"></div>
+    </aside>
+
+    <main id="mainContent"></main>
 
     <script>
         lucide.createIcons();
 
-        document.querySelectorAll('.submenu-toggle').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const container = item.nextElementSibling;
-                if(container && container.classList.contains('submenu-container')) {
-                    e.preventDefault();
-                    container.classList.toggle('show');
-                }
-            })
-        });
+        function handleNavClick(item, element) {
+            const panel = document.getElementById('secondaryPanel');
+            const container = document.getElementById('subItemContainer');
+            const main = document.getElementById('mainContent');
 
-        // Logo Fallback
-        const img = document.getElementById('sidebarLogo');
-        const err = document.getElementById('logoError');
-        if(img){
-            img.onerror = function() {
-                img.style.display = 'none';
-                err.style.display = 'block';
-                console.error("Logo failed to load from: " + img.src);
-            };
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            if (item.subItems && item.subItems.length > 0) {
+                panel.classList.add('open');
+                main.classList.add('main-shifted');
+                
+                // REMOVED: The dynamic section title heading
+                container.innerHTML = `
+                    <div class="back-btn" onclick="closeSubMenu()">
+                        <i data-lucide="chevron-left" style="width: 16px; height: 16px; margin-right: 8px;"></i>
+                        Back
+                    </div>
+                `;
+
+                item.subItems.forEach(sub => {
+                    container.innerHTML += `
+                        <a href="${sub.path}" class="sub-item">
+                            <i data-lucide="${sub.icon || 'circle'}" class="sub-icon"></i>
+                            <span style="flex:1">${sub.name}</span>
+                            <i data-lucide="chevron-right" style="width:12px; height:12px; color:#a1a1aa"></i>
+                        </a>`;
+                });
+                lucide.createIcons();
+            } else {
+                closeSubMenu();
+                if(item.path && item.path !== '#') window.location.href = item.path;
+            }
+        }
+
+        function closeSubMenu() {
+            const panel = document.getElementById('secondaryPanel');
+            const main = document.getElementById('mainContent');
+            panel.classList.remove('open');
+            main.classList.remove('main-shifted');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         }
     </script>
 </body>
