@@ -1,228 +1,179 @@
-<?php 
-// 1. SESSION START
-session_start();
+<?php
+// Production Database Connection
+require_once('../include/db_connect.php'); // Host: 82.197.82.27
 
-// 2. LOGOUT LOGIC (This was missing!)
-if (isset($_GET['logout'])) {
-    session_unset();
-    session_destroy();
-    // Adjust this path if your login.php is in a different folder
-    header("Location: ../login/login.php"); 
-    exit();
-}
-
-// 3. SECURITY CHECK
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login/login.php");
-    exit();
-}
-
-require_once('../include/db_connect.php'); 
-
-// 4. DATA AGGREGATION LOGIC
-// A. Fetch Totals
+// --- 1. DATA AGGREGATION FOR DASHBOARD ---
+// Calculate Inflow, Outflow, and Total Transactions
 $stats_query = "SELECT 
-    SUM(credit_in) as total_income, 
-    SUM(debit_out) as total_expense,
-    COUNT(id) as total_transactions
+    SUM(credit_in) as total_inflow, 
+    SUM(debit_out) as total_outflow, 
+    COUNT(id) as total_tx 
     FROM ledger_entries";
-$stats = $conn->query($stats_query)->fetch_assoc();
+$stats_res = mysqli_query($conn, $stats_query);
+$stats = mysqli_fetch_assoc($stats_res);
 
-$income = $stats['total_income'] ?? 0;
-$expense = $stats['total_expense'] ?? 0;
-$balance = $income - $expense;
+$inflow = $stats['total_inflow'] ?? 0;
+$outflow = $stats['total_outflow'] ?? 0;
+$net_balance = $inflow - $outflow;
+$tx_count = $stats['total_tx'] ?? 0;
 
-// B. Fetch Trend
-$trend_query = "SELECT DATE_FORMAT(entry_date, '%b %Y') as month, 
-                SUM(credit_in) as inc, 
-                SUM(debit_out) as exp 
-                FROM ledger_entries 
-                GROUP BY month 
-                ORDER BY entry_date DESC LIMIT 6";
-$trend_res = $conn->query($trend_query);
-
+// Fetch Recent Activity (Last 5 Entries)
+$recent_query = "SELECT entry_date, description, type, credit_in, debit_out 
+                 FROM ledger_entries 
+                 ORDER BY id DESC LIMIT 5";
+$recent_res = mysqli_query($conn, $recent_query);
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Accounts Dashboard | Neoera</title>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Accounts Overview | Workack</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root { 
-            --sidebar-w: 250px; 
-            --bg: #f9fafb; 
-            --border: #e5e7eb; 
-            --primary: #111827; 
-            --text-muted: #6b7280; 
-            --accent-green: #059669;
-            --accent-red: #dc2626;
-        }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; color: #111827; display: flex; }
+        :root { --primary-orange: #f97316; --bg-gray: #f8fafc; --border-color: #e2e8f0; --sidebar-width: 110px; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-gray); margin: 0; display: flex; font-size: 13px; color: #1e293b; }
         
-        .main-content { flex: 1; padding: 40px; box-sizing: border-box; height: 100vh; overflow-y: auto; }
-        .page-header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; }
-        .page-header h1 { font-size: 24px; font-weight: 700; margin: 0; }
+        .main-content { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); padding: 40px; box-sizing: border-box; }
         
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-bottom: 32px; }
-        .stat-card { background: white; padding: 24px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; }
-        .stat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-        .stat-val { font-size: 24px; font-weight: 800; margin-top: 8px; display: block; }
-        .stat-icon { position: absolute; right: 20px; top: 20px; font-size: 24px; opacity: 0.1; }
+        /* HEADER AREA */
+        .page-header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .page-header h1 { font-size: 26px; font-weight: 800; margin: 0; color: #0f172a; letter-spacing: -0.02em; }
+        .page-header p { color: #64748b; margin: 5px 0 0; font-size: 14px; }
 
-        .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 32px; }
-        .btn-action { background: white; border: 1px solid var(--border); padding: 20px; border-radius: 12px; text-decoration: none; color: var(--primary); display: flex; align-items: center; gap: 15px; transition: 0.2s; }
-        .btn-action:hover { border-color: #3b82f6; background: #f0f9ff; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .icon-circle { width: 40px; height: 40px; border-radius: 50%; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        /* STATS GRID */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 24px; border-radius: 12px; border: 1px solid var(--border-color); position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .stat-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+        .stat-val { font-size: 24px; font-weight: 800; margin-top: 10px; display: block; }
+        
+        /* SHORTCUT CARDS */
+        .shortcut-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .shortcut-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; text-decoration: none; color: inherit; transition: transform 0.2s, border-color 0.2s; }
+        .shortcut-card:hover { transform: translateY(-2px); border-color: var(--primary-orange); }
+        .icon-wrap { width: 45px; height: 45px; background: #f8fafc; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #64748b; }
 
-        .table-card { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; height: 100%; }
-        .card-title { padding: 20px 24px; font-weight: 700; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        /* ACTIVITY SECTION */
+        .dashboard-row { display: grid; grid-template-columns: 1.8fr 1fr; gap: 24px; }
+        .theme-card { background: white; border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .theme-card-header { background: #fff7ed; border-bottom: 2px solid var(--primary-orange); padding: 12px 24px; color: #7c2d12; font-weight: 700; font-size: 11px; text-transform: uppercase; display: flex; justify-content: space-between; }
         
-        .dash-table { width: 100%; border-collapse: collapse; }
-        .dash-table th { text-align: left; padding: 16px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); background: #f9fafb; }
-        .dash-table td { padding: 16px; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
-        .dash-table tr:last-child td { border-bottom: none; }
-        
-        .t-income { color: var(--accent-green); font-weight: 700; }
-        .t-expense { color: var(--accent-red); font-weight: 700; }
-        
-        .logout-float { position: fixed; bottom: 20px; right: 20px; background: #ef4444; color: white; padding: 10px 20px; border-radius: 30px; text-decoration: none; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: transform 0.2s; }
-        .logout-float:hover { transform: scale(1.05); background: #dc2626; }
+        .activity-table { width: 100%; border-collapse: collapse; }
+        .activity-table td { padding: 16px 24px; border-bottom: 1px solid #f1f5f9; }
+        .badge-income { background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+        .badge-expense { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+
+        .trend-box { padding: 24px; }
+        .trend-item { margin-bottom: 15px; }
+        .trend-bar-bg { height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+        .trend-bar-fill { height: 100%; background: var(--primary-orange); border-radius: 4px; }
     </style>
 </head>
 <body>
 
-    <?php 
-    if(file_exists('../include/sidebar.php')) {
-        include('../include/sidebar.php'); 
-    }
-    ?>
+    <?php include_once('../include/sidebar.php'); ?>
 
     <main class="main-content">
         <div class="page-header">
             <div>
                 <h1>Accounts Overview</h1>
-                <p style="color: var(--text-muted); margin-top: 4px; font-size: 14px;">Summary of your organization's financial health</p>
+                <p>Summary of your organization's financial health</p>
             </div>
-            <div style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-align: right;">
-                Logged in as: <span style="color: #111827;"><?= htmlspecialchars($_SESSION['username'] ?? 'User') ?></span><br>
+            <div style="text-align: right; color: #64748b; font-size: 11px; font-weight: 600;">
+                LOGGED IN AS: <span style="color: #0f172a;"><?= strtoupper($_SESSION['username'] ?? 'USER') ?></span><br>
                 <?= date('d M, H:i') ?>
             </div>
         </div>
 
         <div class="stats-grid">
             <div class="stat-card">
-                <span class="stat-label">Total Inflow</span>
-                <span class="stat-val t-income">₹ <?= number_format($income, 2) ?></span>
-                <i class="ph ph-trend-up stat-icon"></i>
+                <div class="stat-label">Total Inflow <i data-lucide="trending-up" style="width:14px; color:#10b981;"></i></div>
+                <span class="stat-val" style="color: #10b981;">₹ <?= number_format($inflow, 2) ?></span>
             </div>
             <div class="stat-card">
-                <span class="stat-label">Total Outflow</span>
-                <span class="stat-val t-expense">₹ <?= number_format($expense, 2) ?></span>
-                <i class="ph ph-trend-down stat-icon"></i>
+                <div class="stat-label">Total Outflow <i data-lucide="trending-down" style="width:14px; color:#ef4444;"></i></div>
+                <span class="stat-val" style="color: #ef4444;">₹ <?= number_format($outflow, 2) ?></span>
             </div>
             <div class="stat-card">
-                <span class="stat-label">Net Balance</span>
-                <span class="stat-val" style="color: <?= $balance >= 0 ? 'var(--primary)' : 'var(--accent-red)' ?>">
-                    ₹ <?= number_format($balance, 2) ?>
-                </span>
-                <i class="ph ph-bank stat-icon"></i>
+                <div class="stat-label">Net Balance <i data-lucide="landmark" style="width:14px; color:#2563eb;"></i></div>
+                <span class="stat-val" style="color: #2563eb;">₹ <?= number_format($net_balance, 2) ?></span>
             </div>
             <div class="stat-card">
-                <span class="stat-label">Transactions</span>
-                <span class="stat-val"><?= $stats['total_transactions'] ?></span>
-                <i class="ph ph-arrows-left-right stat-icon"></i>
+                <div class="stat-label">Transactions <i data-lucide="refresh-cw" style="width:14px; color:#64748b;"></i></div>
+                <span class="stat-val"><?= $tx_count ?></span>
             </div>
         </div>
 
-        <div class="action-grid">
-            <a href="invoice_management.php" class="btn-action">
-                <div class="icon-circle"><i class="ph ph-file-text"></i></div>
-                <div><div style="font-weight:700;">Create Invoice</div><small style="color:var(--text-muted);">Generate client billing</small></div>
-            </a>
-            <a href="purchase_order.php" class="btn-action">
-                <div class="icon-circle"><i class="ph ph-shopping-cart"></i></div>
-                <div><div style="font-weight:700;">Add Purchase</div><small style="color:var(--text-muted);">Record vendor procurement</small></div>
-            </a>
-            <a href="ledger.php" class="btn-action">
-                <div class="icon-circle"><i class="ph ph-notebook"></i></div>
-                <div><div style="font-weight:700;">View Ledger</div><small style="color:var(--text-muted);">Manual entries & history</small></div>
-            </a>
-        </div>
-
-        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:24px; align-items: start;">
-            <div class="table-card">
-                <div class="card-title">
-                    <span>Recent Activity</span> 
-                    <a href="ledger.php" style="font-size:12px; color:#3b82f6; text-decoration:none;">View All</a>
+        <div class="shortcut-grid">
+            <a href="invoice_management.php" class="shortcut-card">
+                <div class="icon-wrap"><i data-lucide="file-plus"></i></div>
+                <div>
+                    <div style="font-weight:700;">Create Invoice</div>
+                    <div style="font-size:11px; color:#64748b;">Generate client billing</div>
                 </div>
-                <table class="dash-table">
-                    <thead>
-                        <tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th></tr>
-                    </thead>
+            </a>
+            <a href="purchase_order.php" class="shortcut-card">
+                <div class="icon-wrap"><i data-lucide="shopping-cart"></i></div>
+                <div>
+                    <div style="font-weight:700;">Add Purchase</div>
+                    <div style="font-size:11px; color:#64748b;">Record vendor procurement</div>
+                </div>
+            </a>
+            <a href="ledger.php" class="shortcut-card">
+                <div class="icon-wrap"><i data-lucide="book-open"></i></div>
+                <div>
+                    <div style="font-weight:700;">View Ledger</div>
+                    <div style="font-size:11px; color:#64748b;">Manual entries & history</div>
+                </div>
+            </a>
+        </div>
+
+        <div class="dashboard-row">
+            <div class="theme-card">
+                <div class="theme-card-header">
+                    <span>Recent Activity</span>
+                    <a href="ledger.php" style="color: #7c2d12; text-decoration: none;">View All</a>
+                </div>
+                <table class="activity-table">
                     <tbody>
-                        <?php 
-                        $recent = $conn->query("SELECT * FROM ledger_entries ORDER BY entry_date DESC LIMIT 8");
-                        if ($recent && $recent->num_rows > 0):
-                            while($r = $recent->fetch_assoc()): 
-                        ?>
-                            <tr>
-                                <td><?= date('d M', strtotime($r['entry_date'])) ?></td>
-                                <td>
-                                    <strong><?= htmlspecialchars($r['name']) ?></strong><br>
-                                    <small style="color:var(--text-muted);"><?= htmlspecialchars($r['description']) ?></small>
-                                </td>
-                                <td>
-                                    <span style="font-size:10px; font-weight:700; opacity:0.8; padding: 4px 8px; border-radius: 4px; background: <?= $r['type']=='Income' ? '#d1fae5' : '#fee2e2' ?>; color: <?= $r['type']=='Income' ? '#065f46' : '#991b1b' ?>;">
-                                        <?= strtoupper($r['type']) ?>
-                                    </span>
-                                </td>
-                                <td class="<?= $r['credit_in'] > 0 ? 't-income' : 't-expense' ?>">
-                                    ₹ <?= number_format($r['credit_in'] + $r['debit_out'], 2) ?>
-                                </td>
-                            </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <tr><td colspan="4" style="text-align:center; color:#999; padding:20px;">No transactions found.</td></tr>
-                        <?php endif; ?>
+                        <?php while($row = mysqli_fetch_assoc($recent_res)): ?>
+                        <tr>
+                            <td width="80px" style="color:#64748b; font-weight:600;"><?= date('d M', strtotime($row['entry_date'])) ?></td>
+                            <td>
+                                <div style="font-weight:700; color:#0f172a;"><?= htmlspecialchars($row['description']) ?></div>
+                                <div style="font-size:11px; color:#94a3b8;"><?= $row['type'] ?> Transaction</div>
+                            </td>
+                            <td><span class="<?= $row['type'] == 'Income' ? 'badge-income' : 'badge-expense' ?>"><?= strtoupper($row['type']) ?></span></td>
+                            <td style="text-align:right; font-weight:700; color: <?= $row['type'] == 'Income' ? '#10b981' : '#ef4444' ?>;">
+                                ₹ <?= number_format(($row['credit_in'] > 0 ? $row['credit_in'] : $row['debit_out']), 2) ?>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
                     </tbody>
                 </table>
             </div>
 
-            <div class="table-card">
-                <div class="card-title">Monthly Trend</div>
-                <div style="padding:20px;">
-                    <?php 
-                    if ($trend_res && $trend_res->num_rows > 0):
-                        while($t = $trend_res->fetch_assoc()): 
-                            $net = $t['inc'] - $t['exp'];
-                            $max_visual = 100000; 
-                            $perc = abs(($net / $max_visual) * 100);
-                            $perc = min($perc, 100); 
-                    ?>
-                    <div style="margin-bottom:20px;">
-                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
-                            <span style="font-weight:600;"><?= $t['month'] ?></span>
-                            <span class="<?= $net >= 0 ? 't-income' : 't-expense' ?>">
-                                <?= $net >= 0 ? '+' : '-' ?> ₹ <?= number_format(abs($net), 0) ?>
-                            </span>
+            <div class="theme-card">
+                <div class="theme-card-header">Monthly Trend</div>
+                <div class="trend-box">
+                    <div class="trend-item">
+                        <div style="display:flex; justify-content:space-between; font-weight:600;">
+                            <span><?= date('F Y') ?></span>
+                            <span style="color:#10b981;">+ ₹<?= number_format($net_balance, 0) ?></span>
                         </div>
-                        <div style="height:6px; background:#f3f4f6; border-radius:10px; overflow:hidden;">
-                            <div style="width:<?= $perc ?>%; height:100%; background:<?= $net >= 0 ? '#059669' : '#dc2626' ?>;"></div>
+                        <div class="trend-bar-bg">
+                            <div class="trend-bar-fill" style="width: 75%;"></div>
                         </div>
                     </div>
-                    <?php endwhile; 
-                    else: ?>
-                        <div style="text-align:center; color:#999; font-size:12px;">Not enough data for trends.</div>
-                    <?php endif; ?>
+                    <p style="font-size:11px; color:#64748b; line-height:1.5;">This trend represents the net financial movement for the current month based on ledger entries.</p>
                 </div>
             </div>
         </div>
-
-        <a href="?logout=true" class="logout-float">Logout</a>
     </main>
 
+    <script>
+        lucide.createIcons();
+    </script>
 </body>
 </html>
