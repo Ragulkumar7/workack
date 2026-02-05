@@ -1,42 +1,72 @@
 <?php
 // --- 1. TARGETED DATABASE CONNECTION ---
 $db_path = '../login/db_connect.php';
-
 if (file_exists($db_path)) {
     include_once($db_path);
 } else {
-    die("<div style='color:red; font-family:sans-serif; padding:20px;'>
-            <strong>Critical Error:</strong> Cannot find db_connect.php at: $db_path <br>
-            Current Folder: " . __DIR__ . "
-         </div>");
+    die("Critical Error: Connection file missing.");
 }
 
-// --- 2. GLOBAL USER DATA ---
-$user = [
-    'name' => 'TL Manager',
-    'role' => 'Team Lead', 
-    'avatar_initial' => 'T'
-];
-
-// --- 3. DASHBOARD SPECIFIC DATA ---
-$tlProfile = [
-    'name' => 'TL Manager',
-    'role' => 'Team Lead - Engineering',
-    'email' => 'tl.manager@company.com'
-];
-
-// --- 4. DYNAMIC DATA FETCHING ---
+// --- 2. DYNAMIC DATA FETCHING & WFH LOGIC ---
 $employeesUnderTL = [];
+$wfhRequests = [];
+$stats = ['present' => 0, 'on_time' => 0, 'late' => 0, 'wfh' => 0];
 
 if (isset($conn) && $conn) {
-    // Fetch all attendance records from the database table
+    // --- UPDATED APPROVAL/REJECTION LOGIC ---
+    if (isset($_POST['action']) && isset($_POST['request_id'])) {
+        $reqId = $_POST['request_id'];
+        
+        if ($_POST['action'] == 'approve') {
+            // ACCEPT: Update status to Approved AND change Work Type to Remote
+            $statusUpdate = "UPDATE team_attendance SET wfh_status='Approved', work_type='Remote' WHERE id=".intval($reqId);
+        } else {
+            // REJECT: Update status to Rejected and ensure Work Type is Office
+            $statusUpdate = "UPDATE team_attendance SET wfh_status='Rejected', work_type='Office' WHERE id=".intval($reqId);
+        }
+        
+        if (is_numeric($reqId)) {
+            mysqli_query($conn, $statusUpdate);
+        } else {
+            // Logic for Test Data (t1, t2, t3) Simulation
+            setcookie($reqId, 'actioned_' . $_POST['action'], time() + 3600, "/"); 
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+    }
+
+    // Fetch Attendance Records
     $sql = "SELECT * FROM team_attendance";
     $result = mysqli_query($conn, $sql);
     
     if ($result && mysqli_num_rows($result) > 0) {
         while($row = mysqli_fetch_assoc($result)) {
             $employeesUnderTL[] = $row;
+            
+            // Stats Calculation
+            if (($row['status'] ?? '') == 'Present') {
+                $stats['present']++;
+                if (strtotime($row['clock_in'] ?? '00:00') <= strtotime('09:15:00')) $stats['on_time']++;
+                else $stats['late']++;
+            }
+            if (($row['work_type'] ?? '') == 'Remote' && ($row['wfh_status'] ?? '') == 'Approved') $stats['wfh']++;
+
+            // Pending Requests (Real DB)
+            if (($row['work_type'] ?? '') == 'Remote' && ($row['wfh_status'] ?? '') == 'Pending') {
+                $wfhRequests[] = $row;
+            }
         }
+    }
+
+    // --- 3. ADDING DETAILS TO WFH REQUESTS SECTION (Simulation Data) ---
+    if (!isset($_COOKIE['t1'])) {
+        $wfhRequests[] = ['id' => 't1', 'employee_name' => 'Anthony Lewis', 'attendance_date' => '2026-02-05', 'shift' => 'Day Shift', 'wfh_reason' => 'Family medical emergency', 'wfh_status' => 'Pending'];
+    }
+    if (!isset($_COOKIE['t2'])) {
+        $wfhRequests[] = ['id' => 't2', 'employee_name' => 'Brian Villalobos', 'attendance_date' => '2026-02-05', 'shift' => 'Night Shift', 'wfh_reason' => 'Home broadband maintenance', 'wfh_status' => 'Pending'];
+    }
+    if (!isset($_COOKIE['t3'])) {
+        $wfhRequests[] = ['id' => 't3', 'employee_name' => 'Doglas Martini', 'attendance_date' => '2026-02-05', 'shift' => 'Day Shift', 'wfh_reason' => 'Travel constraints today', 'wfh_status' => 'Pending'];
     }
 }
 ?>
@@ -49,155 +79,143 @@ if (isset($conn) && $conn) {
     <title>Team Attendance Portal</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-
     <style>
-        /* --- GLOBAL LAYOUT STYLES --- */
         body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background-color: #f4f7fc; display: flex; height: 100vh; overflow: hidden; }
         .main-content-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh; }
         .dashboard-scroll-area { flex: 1; overflow-y: auto; padding: 30px; }
-
-        /* --- DASHBOARD HEADER --- */
-        .tl-header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 30px; border-radius: 12px; border: 1px solid #e1e1e1; margin-bottom: 30px; }
-        
-        .tl-card { background: white; padding: 25px; border-radius: 16px; border: 1px solid #e1e1e1; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        .tl-header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 30px; border-radius: 12px; border: 1px solid #e1e1e1; margin-bottom: 20px; }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .stat-mini-card { background: white; padding: 15px; border-radius: 12px; border: 1px solid #e1e1e1; text-align: center; }
+        .stat-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: 700; }
+        .stat-value { font-size: 18px; font-weight: 800; color: #333; }
+        .tl-card { background: white; padding: 25px; border-radius: 16px; border: 1px solid #e1e1e1; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
         .card-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; margin-bottom: 15px; font-weight: 700; font-size: 18px; color: #333; }
-
-        /* --- TABLE STYLE FOR ATTENDANCE LOG --- */
-        .immersive-table { width: 100%; border-collapse: separate; border-spacing: 0 15px; }
-        .immersive-row { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: transform 0.2s; }
-        .immersive-row:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .immersive-cell { padding: 15px 20px; vertical-align: middle; border-top: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
-        .immersive-row td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; border-left: 1px solid #f0f0f0; }
-        .immersive-row td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; border-right: 1px solid #f0f0f0; }
-
-        /* --- MODAL STYLES --- */
-        .modal-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9999; 
-        }
-        .modal-overlay.active { display: flex; }
-        .modal-box { 
-            background: white; padding: 30px; border-radius: 16px; width: 400px; 
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2); position: relative;
-        }
-        .modal-details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; text-align: center; }
-        .detail-label { font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700; margin-bottom: 5px; }
-        .detail-value { font-size: 14px; font-weight: 700; color: #333; }
-        .prod-val { color: #FF9B44; }
-        .close-btn { position: absolute; top: 20px; right: 20px; cursor: pointer; color: #999; }
+        .immersive-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        .immersive-row { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .immersive-cell { padding: 12px 20px; vertical-align: middle; border-top: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+        .btn-approve { background: #dcfce7; color: #166534; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; }
+        .btn-reject { background: #fee2e2; color: #991b1b; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; margin-left: 5px; }
+        .wfh-date { font-size: 12px; color: #64748b; font-weight: 500; }
+        .wfh-shift { font-size: 11px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; color: #475569; }
     </style>
 </head>
 <body>
-
     <?php include '../include/sidebar.php'; ?>
-
     <div class="main-content-wrapper">
         <?php include '../include/header.php'; ?>
-
         <div class="dashboard-scroll-area">
-            <div class="tl-dashboard">
-                
-                <div class="tl-header">
-                    <div>
-                        <h1 style="font-size: 28px; font-weight: 800; margin: 0; color: #1a1a1a;">Team Attendance Portal</h1>
-                        <p style="font-size: 14px; color: #666; margin: 0;">Monitoring attendance for <span style="color:#FF9B44; font-weight:bold;"><?= htmlspecialchars($tlProfile['name']) ?>'s</span> team</p>
-                    </div>
-                    <div style="width: 50px; height: 50px; background: #fff7ed; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FF9B44; border: 1px solid #ffedd5;">
-                        <i data-lucide="calendar-check"></i>
-                    </div>
+            <div class="tl-header">
+                <div>
+                    <h1 style="font-size: 24px; font-weight: 800; margin: 0; color: #1a1a1a;">Attendance & WFH Portal</h1>
+                    <p style="font-size: 13px; color: #666; margin: 0;">Managing Stage: <span style="color:#FF9B44; font-weight:bold;">Live Attendance</span></p>
                 </div>
+            </div>
 
-                <div class="tl-card" style="margin-top: 10px;">
-                    <div class="card-header">
-                        <div style="display:flex; align-items:center; gap:10px;"><i data-lucide="list" color="#FF9B44" size="20"></i> Team Attendance Log</div>
-                    </div>
-                    <table class="immersive-table">
-                        <thead>
-                            <tr style="text-align:left; font-size:12px; color:#9ca3af; text-transform:uppercase; letter-spacing: 0.5px;">
-                                <th style="padding-left:20px;">Employee</th>
-                                <th>Status</th>
-                                <th>Work Type</th>
-                                <th>Shift</th>
-                                <th style="text-align:right; padding-right:20px;">Detail</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach($employeesUnderTL as $emp): ?>
+            <div class="stats-row">
+                <div class="stat-mini-card"><div class="stat-label">Total Present</div><div class="stat-value"><?= $stats['present'] ?></div></div>
+                <div class="stat-mini-card"><div class="stat-label">On Time</div><div class="stat-value" style="color:#16a34a;"><?= $stats['on_time'] ?></div></div>
+                <div class="stat-mini-card"><div class="stat-label">Late Arrival</div><div class="stat-value" style="color:#dc2626;"><?= $stats['late'] ?></div></div>
+                <div class="stat-mini-card"><div class="stat-label">WFH Active</div><div class="stat-value" style="color:#2563eb;"><?= $stats['wfh'] ?></div></div>
+            </div>
+
+            <div class="tl-card">
+                <div class="card-header">
+                    <div style="display:flex; align-items:center; gap:10px;"><i data-lucide="home" color="#2563eb" size="20"></i> WFH Requests (Pending Approval)</div>
+                </div>
+                <table class="immersive-table">
+                    <thead>
+                        <tr style="text-align:left; font-size:11px; color:#94a3b8; text-transform:uppercase;">
+                            <th>Employee</th>
+                            <th>Request Date</th>
+                            <th>Shift Type</th>
+                            <th>Reason for WFH</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if(empty($wfhRequests)): ?>
+                            <tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">No pending WFH requests.</td></tr>
+                        <?php else: ?>
+                            <?php foreach($wfhRequests as $req): ?>
                                 <tr class="immersive-row">
-                                    <td class="immersive-cell" style="padding-left:20px;">
-                                        <div style="display:flex; align-items:center; gap:12px;">
-                                            <img src="<?= htmlspecialchars($emp['avatar']) ?>" style="width:35px; height:35px; border-radius:50%; object-fit: cover; border: 1px solid #eee;">
-                                            <span style="font-weight:700; font-size:14px; color: #333;"><?= htmlspecialchars($emp['employee_name']) ?></span>
-                                        </div>
-                                    </td>
-                                    <td class="immersive-cell">
-                                        <span style="background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;"><?= htmlspecialchars($emp['status']) ?></span>
-                                    </td>
-                                    <td class="immersive-cell" style="font-weight: 600; color: #555;"><?= htmlspecialchars($emp['work_type']) ?></td>
-                                    <td class="immersive-cell" style="color: #888;"><?= htmlspecialchars($emp['shift']) ?></td>
-                                    <td class="immersive-cell" style="text-align:right; padding-right:20px;">
-                                        <i data-lucide="chevron-right" 
-                                           style="cursor:pointer; color:#FF9B44;" 
-                                           onclick="openDetails('<?= addslashes($emp['employee_name']) ?>', '<?= $emp['clock_in'] ?>', '<?= $emp['clock_out'] ?>', '<?= $emp['production'] ?>')"></i>
+                                    <td class="immersive-cell"><strong><?= htmlspecialchars($req['employee_name'] ?? '') ?></strong></td>
+                                    <td class="immersive-cell wfh-date"><?= date('d M, Y', strtotime($req['attendance_date'] ?? 'today')) ?></td>
+                                    <td class="immersive-cell"><span class="wfh-shift"><?= htmlspecialchars($req['shift'] ?? 'Day Shift') ?></span></td>
+                                    <td class="immersive-cell" style="font-style:italic; color:#64748b;">"<?= htmlspecialchars($req['wfh_reason'] ?? '') ?>"</td>
+                                    <td class="immersive-cell" style="text-align:right;">
+                                        <form method="POST" style="display:inline;">
+                                            <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                            <button type="submit" name="action" value="approve" class="btn-approve">Approve</button>
+                                            <button type="submit" name="action" value="reject" class="btn-reject">Reject</button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
 
+            <div class="tl-card">
+                <div class="card-header">
+                    <div style="display:flex; align-items:center; gap:10px;"><i data-lucide="users" color="#FF9B44" size="20"></i> Team Attendance Log</div>
+                </div>
+                <table class="immersive-table">
+                    <thead>
+                        <tr style="text-align:left; font-size:11px; color:#94a3b8; text-transform:uppercase;">
+                            <th style="padding-left:20px;">Employee</th>
+                            <th>Status</th>
+                            <th>Clock In</th>
+                            <th>Clock Out</th>
+                            <th>Production</th>
+                            <th>WFH Stage</th>
+                            <th style="text-align:right; padding-right:20px;">Detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($employeesUnderTL as $emp): 
+                            $empName = $emp['employee_name'] ?? '';
+                            $workType = $emp['work_type'] ?? 'Office';
+                            $wfhStatus = $emp['wfh_status'] ?? '';
+
+                            // Updated Simulation Logic for Bottom Table Change
+                            if ($empName == 'Anthony Lewis' && isset($_COOKIE['t1']) && $_COOKIE['t1'] == 'actioned_approve') { $workType = 'Remote'; $wfhStatus = 'Approved'; }
+                            if ($empName == 'Brian Villalobos' && isset($_COOKIE['t2']) && $_COOKIE['t2'] == 'actioned_approve') { $workType = 'Remote'; $wfhStatus = 'Approved'; }
+                            if ($empName == 'Doglas Martini' && isset($_COOKIE['t3']) && $_COOKIE['t3'] == 'actioned_approve') { $workType = 'Remote'; $wfhStatus = 'Approved'; }
+                        ?>
+                            <tr class="immersive-row">
+                                <td class="immersive-cell" style="padding-left:20px;">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <img src="<?= htmlspecialchars($emp['avatar'] ?? '') ?>" style="width:30px; height:30px; border-radius:50%; background:#eee;">
+                                        <span style="font-weight:600;"><?= htmlspecialchars($empName) ?></span>
+                                    </div>
+                                </td>
+                                <td class="immersive-cell">
+                                    <span style="background: <?= (($emp['status'] ?? '')=='Present'?'#dcfce7':'#fee2e2') ?>; color: <?= (($emp['status'] ?? '')=='Present'?'#166534':'#991b1b') ?>; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight:700;">
+                                        <?= htmlspecialchars($emp['status'] ?? 'Absent') ?>
+                                    </span>
+                                </td>
+                                <td class="immersive-cell"><?= !empty($emp['clock_in']) ? date('h:i A', strtotime($emp['clock_in'])) : '--:--' ?></td>
+                                <td class="immersive-cell"><?= !empty($emp['clock_out']) ? date('h:i A', strtotime($emp['clock_out'])) : '--:--' ?></td>
+                                <td class="immersive-cell" style="color:#FF9B44; font-weight:700;"><?= htmlspecialchars($emp['production'] ?? '00:00') ?> Hrs</td>
+                                
+                                <td class="immersive-cell">
+                                    <?php if($workType == 'Remote' && $wfhStatus == 'Approved'): ?>
+                                        <span style="color:#16a34a; font-weight:700; font-size:12px;">WFH</span>
+                                    <?php elseif($workType == 'Remote' && $wfhStatus == 'Pending'): ?>
+                                        <span style="color:#ea580c; font-weight:700; font-size:12px;">Pending</span>
+                                    <?php else: ?>
+                                        <span style="color:#cbd5e1;">Office</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="immersive-cell" style="text-align:right; padding-right:20px;"><i data-lucide="eye" style="color:#64748b; cursor:pointer;"></i></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-
-    <div id="detailsModal" class="modal-overlay">
-        <div class="modal-box">
-            <i data-lucide="x" class="close-btn" onclick="closeDetails()"></i>
-            <h3 style="margin: 0; font-size: 18px;" id="modalEmpName">Employee Details</h3>
-            <p style="font-size: 12px; color: #999; margin: 5px 0 20px 0;">Attendance metrics for today</p>
-            
-            <div class="modal-details-grid">
-                <div>
-                    <div class="detail-label">Clock In</div>
-                    <div class="detail-value" id="modalClockIn">-</div>
-                </div>
-                <div>
-                    <div class="detail-label">Clock Out</div>
-                    <div class="detail-value" id="modalClockOut">-</div>
-                </div>
-                <div>
-                    <div class="detail-label">Production</div>
-                    <div class="detail-value prod-val" id="modalProd">-</div>
-                </div>
-            </div>
-            
-            <button style="width: 100%; background: #FF9B44; color: white; border: none; border-radius: 8px; padding: 12px; margin-top: 30px; font-weight: 700; cursor: pointer;" onclick="closeDetails()">
-                Close
-            </button>
-        </div>
-    </div>
-
-    <script>
-        lucide.createIcons();
-
-        function openDetails(name, clockIn, clockOut, prod) {
-            document.getElementById('modalEmpName').innerText = name;
-            document.getElementById('modalClockIn').innerText = clockIn;
-            document.getElementById('modalClockOut').innerText = clockOut;
-            document.getElementById('modalProd').innerText = prod;
-            document.getElementById('detailsModal').classList.add('active');
-        }
-
-        function closeDetails() {
-            document.getElementById('detailsModal').classList.remove('active');
-        }
-
-        window.onclick = function(event) {
-            let modal = document.getElementById('detailsModal');
-            if (event.target == modal) {
-                closeDetails();
-            }
-        }
-    </script>
+    <script>lucide.createIcons();</script>
 </body>
 </html>
