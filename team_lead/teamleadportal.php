@@ -28,8 +28,21 @@ $tlProfile = [
 // --- 4. DATA FETCHING LOGIC ---
 $teamProgress = [];
 $teamReviews = [];
+$filedCharges = []; // Added for new section
 
 if (isset($conn) && $conn) {
+    // Handle File Charge Submission
+    if (isset($_POST['file_charge'])) {
+        $empName = mysqli_real_escape_string($conn, $_POST['employee_name']);
+        $issueType = mysqli_real_escape_string($conn, $_POST['issue_type']);
+        $description = mysqli_real_escape_string($conn, $_POST['description']);
+        
+        // Assuming a table 'disciplinary_actions' exists or creating a local log
+        $sqlCharge = "INSERT INTO disciplinary_actions (employee_name, issue_type, description, filed_by, status) 
+                      VALUES ('$empName', '$issueType', '$description', '{$user['name']}', 'Pending Manager Review')";
+        mysqli_query($conn, $sqlCharge);
+    }
+
     // Fetch Team Progress
     $sqlProgress = "SELECT * FROM team_progress";
     $resProgress = mysqli_query($conn, $sqlProgress);
@@ -96,10 +109,13 @@ function getStatusStyles($status) {
         .review-table th, .review-table td { border: 1px solid #eee; padding: 10px; text-align: left; font-size: 13px; }
         .review-table th { background: #f9f9f9; }
         .tl-input, .tl-textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-top: 5px; box-sizing: border-box; }
+        .tl-select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-top: 5px; background: white; }
         .badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; border: 1px solid; display: inline-block; }
         .badge-green { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
         .badge-orange { background: #fff7ed; color: #c2410c; border-color: #ffedd5; }
+        .badge-red { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
         .tl-btn { padding: 10px 20px; border-radius: 6px; font-weight: 700; cursor: pointer; border: none; background: #FF9B44; color: white; }
+        .btn-danger { background: #dc2626; }
     </style>
 </head>
 <body>
@@ -174,6 +190,9 @@ function getStatusStyles($status) {
                                                     <a class="action-item" onclick="openActionModal('review', '<?= addslashes($emp['name']) ?>', '<?= addslashes($emp['task']) ?>')">
                                                         <i data-lucide="file-search"></i> Review Progress
                                                     </a>
+                                                    <a class="action-item" style="color: #dc2626;" onclick="openActionModal('charge', '<?= addslashes($emp['name']) ?>', '')">
+                                                        <i data-lucide="alert-octagon"></i> File Charge
+                                                    </a>
                                                     <div style="border-top: 1px solid #f0f0f0; margin: 4px 0;"></div>
                                                     <a class="action-item" style="color: #10B981;" onclick="handleSuccess('Task marked as completed!')">
                                                         <i data-lucide="check-circle"></i> Mark Completed
@@ -188,6 +207,27 @@ function getStatusStyles($status) {
                             <?php endif; ?>
                         </tbody>
                     </table>
+                </div>
+
+                <div class="tl-card">
+                    <div class="card-header">
+                        <div style="display:flex; align-items:center; gap:10px;"><i data-lucide="shield-alert" color="#dc2626" size="20"></i> Disciplinary Action Log</div>
+                    </div>
+                    <div class="card-body">
+                        <table class="review-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Issue Type</th>
+                                    <th>Details</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="chargeLogBody">
+                                <tr id="noChargePlaceholder"><td colspan="4" style="text-align:center; color:#999;">No charges filed against team members.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div class="tl-card">
@@ -282,6 +322,21 @@ function getStatusStyles($status) {
                 title.innerText = "Review Progress: " + name;
                 content.innerHTML = `<table class="review-table"><thead><tr><th>Criteria</th><th>Good</th><th>Bad</th></tr></thead><tbody><tr><td>Work Quality</td><td><input type="radio" name="work_quality" value="Good" checked></td><td><input type="radio" name="work_quality" value="Bad"></td></tr><tr><td>Timely Delivery</td><td><input type="radio" name="timely" value="Good" checked></td><td><input type="radio" name="timely" value="Bad"></td></tr></tbody></table><label style="margin-top:15px; display:block; font-size:12px;">Lead Comments</label><textarea class="tl-textarea" id="reviewComments" placeholder="Add feedback..."></textarea>`;
                 footer.innerHTML = `<button onclick="submitReview()" class="tl-btn">Done</button>`;
+            } else if(type === 'charge') {
+                // NEW MODAL: FILE CHARGE
+                title.innerText = "File Charge Against: " + name;
+                content.innerHTML = `
+                    <label style="font-size:12px; font-weight:600;">Issue Category</label>
+                    <select class="tl-select" id="issueType">
+                        <option value="Not Working">Not Working / Idle</option>
+                        <option value="Behavioral Issue">Behavioral Issue</option>
+                        <option value="Attendance Gap">Attendance Gap</option>
+                        <option value="Quality Failure">Severe Quality Failure</option>
+                    </select>
+                    <label style="margin-top:15px; display:block; font-size:12px; font-weight:600;">Detailed Reason for Charge</label>
+                    <textarea class="tl-textarea" id="chargeDescription" placeholder="Explain the issue for the manager..."></textarea>
+                `;
+                footer.innerHTML = `<button onclick="submitCharge()" class="tl-btn btn-danger">File Charge to Manager</button>`;
             }
             document.getElementById('actionModal').classList.add('open');
         }
@@ -291,8 +346,28 @@ function getStatusStyles($status) {
             handleSuccess("Task updated successfully!");
         }
 
+        function submitCharge() {
+            const issue = document.getElementById('issueType').value;
+            const desc = document.getElementById('chargeDescription').value || "No details provided";
+            const tableBody = document.getElementById('chargeLogBody');
+            const placeholder = document.getElementById('noChargePlaceholder');
+            
+            if (placeholder) placeholder.remove();
+            
+            const newRow = `
+                <tr class="immersive-row">
+                    <td style="font-weight:600; padding:10px;">${activeReviewee}</td>
+                    <td style="padding:10px;"><span class="badge badge-red">${issue}</span></td>
+                    <td style="font-size:12px; color:#666; padding:10px;">${desc}</td>
+                    <td style="padding:10px;"><span class="badge" style="background:#fefce8; color:#854d0e; border-color:#fef08a;">Sent to Manager</span></td>
+                </tr>`;
+            tableBody.innerHTML = newRow + tableBody.innerHTML;
+            
+            closeModal('actionModal');
+            handleSuccess("Charge has been successfully filed with the Manager.");
+        }
+
         function submitReview() {
-            // Local UI Update for immediate feedback
             const quality = document.querySelector('input[name="work_quality"]:checked').value;
             const timely = document.querySelector('input[name="timely"]:checked').value;
             const comments = document.getElementById('reviewComments').value || "No comments";
