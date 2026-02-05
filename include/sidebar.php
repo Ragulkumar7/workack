@@ -10,14 +10,45 @@ $current_path = $_SERVER['REQUEST_URI'];
 ?>
 
 <?php
-// 3. DEFINE MENU DATA
+// 3. DEFINE MENU DATA - All Original Sections + Updated TL Dropdown
 $sections = [
     [
         'label' => 'Main',
         'items' => [
             ['name' => 'Dashboard', 'path' => '/', 'icon' => 'layout-dashboard', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
-            ['name' => 'Team Lead', 'path' => '/teamlead', 'icon' => 'users', 'allowed' => ['TL', 'HR', 'Manager']],
-            ['name' => 'HR Management', 'path' => '/hrManagement', 'icon' => 'fingerprint', 'allowed' => ['Manager', 'HR']],
+            
+            // --- TEAM LEAD (With Sub-Items) ---
+            [
+                'name' => 'Team Lead', 
+                'icon' => 'users', 
+                'allowed' => ['TL', 'HR', 'Manager'],
+                'subItems' => [
+                    ['name' => 'TL Dashboard', 'path' => '/workack/team_lead/tl_dashboard.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'TL Portal', 'path' => '/workack/team_lead/teamleadportal.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Attendance Portal', 'path' => '/workack/team_lead/TeamLeadAttendance.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Task Management', 'path' => '/workack/team_lead/taskmanagement.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Contact', 'path' => '/workack/team_lead/contact.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Settings', 'path' => '/workack/settings.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                    ['name' => 'Report', 'path' => '/workack/team_lead/report.php', 'allowed' => ['TL', 'HR', 'Manager']],
+                ]
+            ],
+
+            // --- HR MANAGEMENT (Full Sub-menu Restored) ---
+            [
+                'name' => 'HR Management', 
+                'icon' => 'fingerprint', 
+                'allowed' => ['Manager', 'HR'],
+                'subItems' => [
+                    ['name' => 'Employees', 'path' => '/workack/hr/employees.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Departments', 'path' => '/workack/hr/departments.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Designations', 'path' => '/workack/hr/designations.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Holidays', 'path' => '/workack/hr/holidays.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Policies', 'path' => '/workack/hr/policy.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Jobs', 'path' => '/workack/hr/jobs.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Candidates', 'path' => '/workack/hr/canditates_grid.php', 'allowed' => ['Manager', 'HR']],
+                ]
+            ],
+
             ['name' => 'Directory', 'path' => '/employees', 'icon' => 'users', 'allowed' => ['Manager', 'HR']],
             ['name' => 'Manager', 'path' => '/manager', 'icon' => 'shield-check', 'allowed' => ['Manager', 'HR']],
         ]
@@ -25,12 +56,28 @@ $sections = [
     [
         'label' => 'Operations',
         'items' => [
+            // --- PERFORMANCE MANAGEMENT (Restored) ---
+            [
+                'name' => 'Performance', 
+                'icon' => 'bar-chart-2', 
+                'allowed' => ['Manager', 'HR', 'TL'],
+                'subItems' => [
+                    ['name' => 'Indicator', 'path' => '/workack/performance/performance_indicator.php', 'allowed' => ['Manager', 'HR', 'TL']],
+                    ['name' => 'Review', 'path' => '/workack/performance/performance_review.php', 'allowed' => ['Manager', 'HR', 'TL']],
+                    ['name' => 'Appraisal', 'path' => '/workack/performance/performance_appraisal.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Probation', 'path' => '/workack/performance/probation_management.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Notice Period', 'path' => '/workack/performance/notice_period.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Resignation', 'path' => '/workack/performance/resignation.php', 'allowed' => ['Manager', 'HR']],
+                    ['name' => 'Termination', 'path' => '/workack/performance/termination.php', 'allowed' => ['Manager', 'HR']],
+                ]
+            ],
+
             ['name' => 'Attendance', 'path' => '/EmployeeAttendance', 'icon' => 'calendar-check', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts', 'DM']],
             ['name' => 'Tasks', 'path' => '/tasks', 'icon' => 'clipboard-list', 'allowed' => ['Manager', 'TL', 'Employee', 'HR', 'DM']],
             ['name' => 'Teams', 'path' => '/teams', 'icon' => 'message-square', 'allowed' => ['Manager', 'TL', 'HR', 'Employee', 'Accounts']],
             ['name' => 'Payroll', 'path' => '/payroll', 'icon' => 'banknote', 'allowed' => ['Manager', 'HR', 'Accounts']],
             
-            // --- UPDATED ACCOUNTS TEAM SECTION WITH SUB-ITEMS ---
+            // --- ACCOUNTS (Preserved) ---
             [
                 'name' => 'Accounts', 
                 'icon' => 'calculator', 
@@ -43,10 +90,10 @@ $sections = [
                     ['name' => 'Reports', 'path' => '/workack/accounts/accounts_reports.php', 'allowed' => ['Manager', 'HR', 'Accounts']],
                 ]
             ],
-            // ---------------------------------------------------
 
             ['name' => 'Recruitment', 'path' => '/recruitment', 'icon' => 'briefcase', 'allowed' => ['Manager', 'HR']],
             
+            // --- DIGITAL MARKETING (Preserved) ---
             [
                 'name' => 'Digital Marketing', 
                 'icon' => 'target', 
@@ -213,11 +260,11 @@ foreach ($sections as $section) {
 
     <aside class="sidebar">
         <a href="#" class="brand-logo">
-            <img src="/project2/workack/assets/logo.png" alt="Workack" class="brand-image" id="sidebarLogo">
+            <img src="/workack/assets/logo.png" alt="Workack" class="brand-image" id="sidebarLogo">
             <div id="logoError" style="display:none; font-size: 8px; color: red; text-align: center; margin-top: 5px;">Image Missing<br>Check: assets/logo.png</div>
         </a>
         
-        <a href="/" class="nav-item <?= $current_path === '/' ? 'active' : '' ?>">
+        <a href="/" class="nav-item <?= ($current_path === '/' || $current_path === '/workack/') ? 'active' : '' ?>">
             <div class="icon-box"><i data-lucide="home"></i></div>
             <span class="nav-label">Home</span>
         </a>
@@ -233,7 +280,6 @@ foreach ($sections as $section) {
                     $hasSub = !empty($item['subItems']);
                     $isMainActive = ($itemPath !== '' && strpos($current_path, $itemPath) !== false);
                     
-                    // Logic to keep parent active if a child is active
                     $childActive = false;
                     if($hasSub) {
                         foreach($item['subItems'] as $sub) {
@@ -285,12 +331,6 @@ foreach ($sections as $section) {
                 const container = item.nextElementSibling;
                 if(container && container.classList.contains('submenu-container')) {
                     e.preventDefault();
-                    
-                    // Close other submenus (Optional)
-                    // document.querySelectorAll('.submenu-container').forEach(c => {
-                    //    if(c !== container) c.classList.remove('show');
-                    // });
-
                     container.classList.toggle('show');
                 }
             })
